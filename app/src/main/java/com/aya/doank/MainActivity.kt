@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
@@ -36,6 +37,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
     private lateinit var tvCenter: TextView
     private lateinit var btnTheme: ImageButton
 
+    // ===== Target play (Tahap 1: UI & state; hook menyusul di Tahap 2) =====
+    private lateinit var btnGrab: ImageButton
+    private lateinit var dotGrab: View
+    private lateinit var btnGojek: ImageButton
+    private lateinit var dotGojek: View
+    private var grabActive = false
+    private var gojekActive = false
+
     private val prefs by lazy { getSharedPreferences("aya_prefs", MODE_PRIVATE) }
     private var isDark = false
 
@@ -51,7 +60,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
                 result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) {
             if (::map.isInitialized) enableMyLocation()
-            performFocus() // lanjutkan maksud awal user: fokus ke lokasinya
+            performFocus()
         } else {
             Toast.makeText(this, "Izin lokasi ditolak — peta tetap bisa digunakan", Toast.LENGTH_LONG).show()
         }
@@ -66,6 +75,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
         fusedClient = LocationServices.getFusedLocationProviderClient(this)
         tvCenter = findViewById(R.id.tv_center)
         btnTheme = findViewById(R.id.btn_theme)
+
+        btnGrab = findViewById(R.id.btn_grab)
+        dotGrab = findViewById(R.id.dot_grab)
+        btnGojek = findViewById(R.id.btn_gojek)
+        dotGojek = findViewById(R.id.dot_gojek)
 
         findViewById<Button>(R.id.btn_zoom_in).setOnClickListener {
             if (::map.isInitialized) map.animateCamera(CameraUpdateFactory.zoomTo(map.maxZoomLevel))
@@ -82,6 +96,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
             updateThemeIcon()
         }
         updateThemeIcon()
+
+        btnGrab.setOnClickListener {
+            grabActive = !grabActive
+            renderPlayState(btnGrab, dotGrab, grabActive)
+            announce("GRAB", grabActive)
+        }
+        btnGojek.setOnClickListener {
+            gojekActive = !gojekActive
+            renderPlayState(btnGojek, dotGojek, gojekActive)
+            announce("GOJEK", gojekActive)
+        }
 
         (supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
             .getMapAsync(this)
@@ -104,7 +129,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
         }
     }
 
-    // Saat kembali dari Settings, refresh status titik biru
     override fun onResume() {
         super.onResume()
         if (::map.isInitialized && hasLocationPermission() && !map.isMyLocationEnabled) {
@@ -113,8 +137,29 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
     }
 
     override fun onCameraIdle() {
-        val target = map.cameraPosition?.target ?: return
-        tvCenter.text = String.format(Locale.US, "%.6f, %.6f", target.latitude, target.longitude)
+        tvCenter.text = centerText()
+    }
+
+    // ===== Play toggle =====
+
+    private fun renderPlayState(btn: ImageButton, dot: View, active: Boolean) {
+        btn.setBackgroundResource(
+            if (active) R.drawable.bg_play_green_touch else R.drawable.bg_play_red_touch
+        )
+        btn.setImageResource(if (active) R.drawable.ic_stop else R.drawable.ic_play)
+        dot.setBackgroundResource(if (active) R.drawable.bg_dot_green else R.drawable.bg_dot_red)
+    }
+
+    private fun announce(name: String, active: Boolean) {
+        val msg = if (active) "$name AKTIF — target membaca lokasi pin: ${centerText()}"
+                  else "$name dihentikan"
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun centerText(): String {
+        if (!::map.isInitialized) return "…"
+        val t = map.cameraPosition.target
+        return String.format(Locale.US, "%.6f, %.6f", t.latitude, t.longitude)
     }
 
     // ===== Alur izin 3 jalur =====
@@ -128,7 +173,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
     }
 
     private fun requestLocationPermission() {
-        // Catat bahwa kita pernah meminta — kunci untuk mendeteksi blokir permanen
         prefs.edit().putBoolean("asked_location", true).apply()
         permissionLauncher.launch(locationPermissions)
     }
@@ -136,9 +180,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnCamera
     private fun canShowSystemDialog(): Boolean {
         val neverAsked = !prefs.getBoolean("asked_location", false)
         if (neverAsked) return true
-
-        // Setelah pernah diminta: dialog sistem masih bisa muncul
-        // selama user belum menolak 2x (perilaku Android 11+)
         val rationaleFine = ActivityCompat.shouldShowRequestPermissionRationale(
             this, Manifest.permission.ACCESS_FINE_LOCATION)
         val rationaleCoarse = ActivityCompat.shouldShowRequestPermissionRationale(
