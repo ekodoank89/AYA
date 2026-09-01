@@ -19,22 +19,25 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
+    <!-- Chip koordinat: pindah ke kiri-atas -->
     <TextView
         android:id="@+id/tv_center"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
+        android:layout_gravity="top|start"
         android:layout_marginStart="16dp"
-        android:layout_marginBottom="32dp"
+        android:layout_marginTop="40dp"
         android:background="@drawable/bg_chip"
         android:elevation="6dp"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp"
+        android:paddingHorizontal="11dp"
+        android:paddingVertical="7dp"
         android:textColor="#FFFFFF"
-        android:textSize="13sp"
+        android:textSize="12sp"
         android:text="…" />
 
+    <!-- Kolom kanan -->
     <LinearLayout
+        android:id="@+id/sidecol"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
@@ -44,58 +47,153 @@
 
         <ImageButton
             android:id="@+id/btn_theme"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/bg_button"
             android:elevation="6dp"
-            android:padding="12dp"
+            android:padding="11dp"
             android:contentDescription="Ganti tema peta"
             android:src="@drawable/ic_moon" />
 
-        <Space
-            android:layout_width="1dp"
-            android:layout_height="10dp" />
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
 
         <ImageButton
             android:id="@+id/btn_my_location"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/bg_button"
             android:elevation="6dp"
-            android:padding="12dp"
+            android:padding="11dp"
             android:contentDescription="Fokus ke lokasi saya"
             android:src="@drawable/ic_gps" />
 
-        <Space
-            android:layout_width="1dp"
-            android:layout_height="18dp" />
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
 
         <Button
             android:id="@+id/btn_zoom_in"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/bg_button"
             android:minWidth="0dp"
             android:minHeight="0dp"
             android:elevation="6dp"
-            android:textSize="24sp"
+            android:textSize="22sp"
             android:textColor="#212121"
+            android:fontFamily="monospace"
             android:text="+" />
 
-        <Space
-            android:layout_width="1dp"
-            android:layout_height="10dp" />
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
 
         <Button
             android:id="@+id/btn_zoom_out"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/bg_button"
             android:minWidth="0dp"
             android:minHeight="0dp"
             android:elevation="6dp"
-            android:textSize="24sp"
+            android:textSize="22sp"
             android:textColor="#212121"
+            android:fontFamily="monospace"
             android:text="−" />
+    </LinearLayout>
+
+    <!-- Panel play: GRAB / GOJEK — mengintip dari tepi kiri -->
+    <LinearLayout
+        android:id="@+id/playgroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginBottom="28dp"
+        android:translationX="-8dp"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:background="@drawable/bg_glass_panel"
+        android:elevation="8dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:id="@+id/dot_grab"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_dot_red" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/target_grab"
+                    android:textColor="#D9FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.125" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_grab"
+                android:layout_width="64dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="5dp"
+                android:padding="15dp"
+                android:background="@drawable/bg_play_red_touch"
+                android:contentDescription="Mulai GRAB"
+                android:src="@drawable/ic_play" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_divider" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:id="@+id/dot_gojek"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_dot_red" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/target_gojek"
+                    android:textColor="#D9FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.125" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_gojek"
+                android:layout_width="64dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="5dp"
+                android:padding="15dp"
+                android:background="@drawable/bg_play_red_touch"
+                android:contentDescription="Mulai GOJEK"
+                android:src="@drawable/ic_play" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>
