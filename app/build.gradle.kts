@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.aya.doank"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.aya.doank"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        minSdk = 30          // Android 11
+        targetSdk = 36       // Android 16
+        versionCode = 2
+        versionName = "1.1"
         manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
@@ -43,5 +43,6 @@ android {
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
