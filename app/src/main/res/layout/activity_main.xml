@@ -19,7 +19,7 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Chip koordinat: pindah ke kiri-atas -->
+    <!-- Chip koordinat pin: GONE sementara (hapus visibility untuk mengaktifkan) -->
     <TextView
         android:id="@+id/tv_center"
         android:layout_width="wrap_content"
@@ -33,6 +33,7 @@
         android:paddingVertical="7dp"
         android:textColor="#FFFFFF"
         android:textSize="12sp"
+        android:visibility="gone"
         android:text="…" />
 
     <!-- Kolom kanan -->
@@ -98,7 +99,7 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- Panel play: GRAB / GOJEK — mengintip dari tepi kiri -->
+    <!-- Panel play: GRAB / GOJEK -->
     <LinearLayout
         android:id="@+id/playgroup"
         android:layout_width="wrap_content"
@@ -111,6 +112,7 @@
         android:background="@drawable/bg_glass_panel"
         android:elevation="8dp">
 
+        <!-- GRAB -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -133,21 +135,61 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/target_grab"
-                    android:textColor="#D9FFFFFF"
+                    android:textColor="@color/label_text"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.125" />
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/btn_grab"
-                android:layout_width="64dp"
-                android:layout_height="48dp"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
-                android:padding="15dp"
-                android:background="@drawable/bg_play_red_touch"
-                android:contentDescription="Mulai GRAB"
-                android:src="@drawable/ic_play" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/btn_grab"
+                    android:layout_width="64dp"
+                    android:layout_height="48dp"
+                    android:padding="15dp"
+                    android:background="@drawable/bg_play_red_touch"
+                    android:contentDescription="Mulai GRAB"
+                    android:src="@drawable/ic_play" />
+
+                <!-- Chip koordinat GRAB: GONE sementara -->
+                <LinearLayout
+                    android:id="@+id/chip_grab"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_coord_chip"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/chip_grab_lat"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/chip_coord_text"
+                        android:textSize="9sp"
+                        android:text="—" />
+
+                    <TextView
+                        android:id="@+id/chip_grab_lng"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/chip_coord_text"
+                        android:textSize="9sp"
+                        android:text="—" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <View
@@ -157,6 +199,7 @@
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_divider" />
 
+        <!-- GOJEK -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -179,21 +222,61 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/target_gojek"
-                    android:textColor="#D9FFFFFF"
+                    android:textColor="@color/label_text"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.125" />
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/btn_gojek"
-                android:layout_width="64dp"
-                android:layout_height="48dp"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
-                android:padding="15dp"
-                android:background="@drawable/bg_play_red_touch"
-                android:contentDescription="Mulai GOJEK"
-                android:src="@drawable/ic_play" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/btn_gojek"
+                    android:layout_width="64dp"
+                    android:layout_height="48dp"
+                    android:padding="15dp"
+                    android:background="@drawable/bg_play_red_touch"
+                    android:contentDescription="Mulai GOJEK"
+                    android:src="@drawable/ic_play" />
+
+                <!-- Chip koordinat GOJEK: GONE sementara -->
+                <LinearLayout
+                    android:id="@+id/chip_gojek"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_coord_chip"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/chip_gojek_lat"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/chip_coord_text"
+                        android:textSize="9sp"
+                        android:text="—" />
+
+                    <TextView
+                        android:id="@+id/chip_gojek_lng"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/chip_coord_text"
+                        android:textSize="9sp"
+                        android:text="—" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
