@@ -32,14 +32,15 @@ class MainActivity : AppCompatActivity() {
         prefs = Prefs(this)
         map = MapController(this, prefs)
         permissionFlow = PermissionFlow(this, prefs) { map.ensureBlueDot() }
-        playPanel = PlayPanelController(this, prefs) { target, active ->
-            if (active) {
-                map.currentCenter()?.let { prefs.setSpoofPoint(it.latitude, it.longitude) }
-            }
-            announce(target, active)
-        }
+        playPanel = PlayPanelController(
+            this, prefs,
+            centerProvider = { map.currentCenter() },
+            blueDotProvider = { map.blueDot }
+        ) { target, active -> announce(target, active) }
 
+        // Chip pin sedang GONE, tapi tetap diperbarui agar mudah diaktifkan lagi nanti
         map.onCenterChanged = { _, _ -> tvCenter.text = map.centerText() }
+        map.onBlueDotChanged = { _, _ -> playPanel.onBlueDotChanged() }
 
         findViewById<Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
         findViewById<Button>(R.id.btn_zoom_out).setOnClickListener { map.zoomOut() }
@@ -61,9 +62,14 @@ class MainActivity : AppCompatActivity() {
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::map.isInitialized) map.stop()
+    }
+
     private fun announce(target: SpoofTarget, active: Boolean) {
-        val msg = if (active) "${target.label} AKTIF — target membaca lokasi pin: ${map.centerText()}"
-                  else "${target.label} dihentikan"
+        val msg = if (active) "${target.label} AKTIF — lock ${map.centerText()}"
+                  else "${target.label} dihentikan — mengikuti titik biru"
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 
