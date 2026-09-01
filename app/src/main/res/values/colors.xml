@@ -1,7 +1,7 @@
 <resources>
     <color name="ic_launcher_bg">#FFFFFF</color>
 
-    <!-- Panel play (nilai lama dipertahankan) -->
+    <!-- Panel play -->
     <color name="glass_bg">#800F1216</color>
     <color name="glass_stroke">#1FFFFFFF</color>
     <color name="play_stroke">#33FFFFFF</color>
@@ -12,4 +12,11 @@
     <color name="dot_red">#E53935</color>
     <color name="dot_green">#69F0AE</color>
     <color name="label_text">#D9FFFFFF</color>
+
+    <!-- Chip koordinat (saat ini hidden, token tetap disiapkan) -->
+    <color name="chip_coord_bg">#73000000</color>
+    <color name="chip_coord_stroke">#1FFFFFFF</color>
+    <color name="chip_coord_text">#EBFFFFFF</color>
+    <color name="chip_coord_stroke_active">#8C69F0AE</color>
+    <color name="chip_coord_text_active">#C8F7D8</color>
 </resources>
