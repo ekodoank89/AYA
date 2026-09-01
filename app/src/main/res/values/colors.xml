@@ -1,3 +1,15 @@
 <resources>
-    <color name="ic_launcher_bg">#0F0F0F</color>
+    <color name="ic_launcher_bg">#FFFFFF</color>
+
+    <!-- Panel play (nilai lama dipertahankan) -->
+    <color name="glass_bg">#800F1216</color>
+    <color name="glass_stroke">#1FFFFFFF</color>
+    <color name="play_stroke">#33FFFFFF</color>
+    <color name="play_red_start">#FF6B5E</color>
+    <color name="play_red_end">#D32F2F</color>
+    <color name="play_green_start">#4CAF50</color>
+    <color name="play_green_end">#2E7D32</color>
+    <color name="dot_red">#E53935</color>
+    <color name="dot_green">#69F0AE</color>
+    <color name="label_text">#D9FFFFFF</color>
 </resources>
