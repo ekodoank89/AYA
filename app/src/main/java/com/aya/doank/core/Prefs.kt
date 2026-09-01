@@ -15,20 +15,21 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASKED_LOCATION, false)
         set(value) = sp.edit().putBoolean(Keys.ASKED_LOCATION, value).apply()
 
-    // State play per target — persist, bertahan walau app ditutup/berotasi
     fun setSpoofActive(id: String, active: Boolean) =
         sp.edit().putBoolean(Keys.spoofActive(id), active).apply()
 
     fun isSpoofActive(id: String): Boolean = sp.getBoolean(Keys.spoofActive(id), false)
 
-    // Titik pin saat tombol play ditekan (dibaca hook nanti). String = presisi double utuh.
-    fun setSpoofPoint(lat: Double, lng: Double) =
-        sp.edit().putString(Keys.SPOOF_LAT, lat.toString())
-            .putString(Keys.SPOOF_LNG, lng.toString()).apply()
+    /** Titik lock per target. String agar presisi double utuh (float = bisa lenceng ±1 meter). */
+    fun setSpoofPoint(id: String, lat: Double, lng: Double) =
+        sp.edit()
+            .putString(Keys.spoofLat(id), lat.toString())
+            .putString(Keys.spoofLng(id), lng.toString())
+            .apply()
 
-    fun spoofPoint(): Pair<Double, Double>? {
-        val lat = sp.getString(Keys.SPOOF_LAT, null)?.toDoubleOrNull() ?: return null
-        val lng = sp.getString(Keys.SPOOF_LNG, null)?.toDoubleOrNull() ?: return null
+    fun spoofPoint(id: String): Pair<Double, Double>? {
+        val lat = sp.getString(Keys.spoofLat(id), null)?.toDoubleOrNull() ?: return null
+        val lng = sp.getString(Keys.spoofLng(id), null)?.toDoubleOrNull() ?: return null
         return lat to lng
     }
 }
