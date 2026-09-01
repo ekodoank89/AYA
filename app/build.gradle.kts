@@ -11,8 +11,8 @@ android {
         applicationId = "com.aya.doank"
         minSdk = 30          // Android 11
         targetSdk = 36       // Android 16
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "1.5"
         manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
