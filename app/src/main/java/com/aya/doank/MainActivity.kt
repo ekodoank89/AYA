@@ -11,6 +11,7 @@ import com.aya.doank.core.SpoofTarget
 import com.aya.doank.ui.MapController
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
+import com.google.android.gms.maps.SupportMapFragment
 
 class MainActivity : AppCompatActivity() {
 
