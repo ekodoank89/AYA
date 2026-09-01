@@ -9,7 +9,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Pin tetap di tengah layar. translationY agar UJUNG pin pas di titik tengah -->
     <ImageView
         android:id="@+id/pin_center"
         android:layout_width="48dp"
@@ -20,7 +19,6 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Koordinat titik tengah peta -->
     <TextView
         android:id="@+id/tv_center"
         android:layout_width="wrap_content"
@@ -36,7 +34,6 @@
         android:textSize="13sp"
         android:text="…" />
 
-    <!-- Tombol zoom custom -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -44,6 +41,34 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="28dp"
         android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/btn_theme"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_button"
+            android:elevation="6dp"
+            android:padding="12dp"
+            android:contentDescription="Ganti tema peta"
+            android:src="@drawable/ic_moon" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="10dp" />
+
+        <ImageButton
+            android:id="@+id/btn_my_location"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_button"
+            android:elevation="6dp"
+            android:padding="12dp"
+            android:contentDescription="Fokus ke lokasi saya"
+            android:src="@drawable/ic_gps" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="18dp" />
 
         <Button
             android:id="@+id/btn_zoom_in"
