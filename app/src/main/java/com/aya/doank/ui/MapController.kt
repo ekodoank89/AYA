@@ -2,11 +2,15 @@ package com.aya.doank.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import com.aya.doank.R
 import com.aya.doank.core.Prefs
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -21,7 +25,27 @@ class MapController(private val context: Context, private val prefs: Prefs) {
 
     private var map: GoogleMap? = null
     private lateinit var fused: FusedLocationProviderClient
+    private var updatesStarted = false
+    private var firstFixJumpDone = false
+    private var pendingEnsure = false
+
+    private var _blueDot: LatLng? = null
+    val blueDot: LatLng? get() = _blueDot
+
     var onCenterChanged: ((Double, Double) -> Unit)? = null
+    var onBlueDotChanged: ((Double, Double) -> Unit)? = null
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            val loc = result.lastLocation ?: return
+            _blueDot = LatLng(loc.latitude, loc.longitude)
+            onBlueDotChanged?.invoke(loc.latitude, loc.longitude)
+            if (!firstFixJumpDone) {
+                firstFixJumpDone = true
+                _blueDot?.let { map?.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 16f)) }
+            }
+        }
+    }
 
     fun attach(fragment: SupportMapFragment) {
         fused = LocationServices.getFusedLocationProviderClient(context)
@@ -38,6 +62,7 @@ class MapController(private val context: Context, private val prefs: Prefs) {
         }
         applyStyle(prefs.isDark)
         g.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(-6.2088, 106.8456), 12f))
+        if (pendingEnsure) ensureBlueDot()
     }
 
     val isReady: Boolean get() = map != null
@@ -63,16 +88,25 @@ class MapController(private val context: Context, private val prefs: Prefs) {
         }
     }
 
-    /** Titik biru + lompat ke posisi terakhir. Aman dipanggil berulang (idempotent). */
+    /** Titik biru + pembaruan lokasi real-time. Aman dipanggil berulang; juga aman saat peta belum siap. */
     @SuppressLint("MissingPermission")
     fun ensureBlueDot() {
-        val m = map ?: return
-        if (m.isMyLocationEnabled) return
-        m.isMyLocationEnabled = true
-        fused.lastLocation.addOnSuccessListener { loc ->
-            loc?.let {
-                m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 16f))
-            }
+        val m = map
+        if (m == null) { pendingEnsure = true; return }
+        if (!m.isMyLocationEnabled) m.isMyLocationEnabled = true
+        if (!updatesStarted) {
+            updatesStarted = true
+            val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
+                .setMinUpdateIntervalMillis(2000L)
+                .build()
+            fused.requestLocationUpdates(req, locationCallback, Looper.getMainLooper())
+        }
+    }
+
+    fun stop() {
+        if (updatesStarted) {
+            fused.removeLocationUpdates(locationCallback)
+            updatesStarted = false
         }
     }
 
