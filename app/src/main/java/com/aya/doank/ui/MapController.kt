@@ -110,6 +110,10 @@ class MapController(private val context: Context, private val prefs: Prefs) {
         }
     }
 
+    fun flyTo(target: LatLng) {
+        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 17f))
+    }
+
     /** Fix GPS segar saat tombol fokus ditekan, dengan fallback lastLocation. */
     fun focusFresh() {
         val m = map ?: return
