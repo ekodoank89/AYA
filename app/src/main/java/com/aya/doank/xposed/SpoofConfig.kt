@@ -5,13 +5,12 @@ import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
 
 /**
- * Pembaca config spoof untuk SATU target di dalam proses aplikasi target.
- * File prefs manager dibaca via XSharedPreferences (LSPosed yang memberi akses).
- * Reload di-throttle 1 detik — jangan baca file di setiap panggilan getLatitude (mahal).
+ * Pembaca config spoof untuk SATU target di dalam proses app target.
+ * Reload di-throttle 1 detik (getLatitude bisa dipanggil ratusan kali/detik).
  */
 class SpoofConfig(private val targetId: String) {
 
-    private val sp = XSharedPreferences("com.aya.doank", Keys.PREFS_NAME)
+    private val sp = XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME)
     private var lastReload = 0L
     private var active = false
     private var lat = Double.NaN
@@ -20,17 +19,16 @@ class SpoofConfig(private val targetId: String) {
 
     init {
         refresh(now = System.currentTimeMillis(), force = true)
+        // === DIAGNOSTIK: satu log pembuka yang menunjukkan apa yang benar-benar terbaca ===
+        val f = try { sp.file } catch (t: Throwable) { null }
+        XposedBridge.log(
+            "AYA [$targetId]: config awal → active=$active, lat=$lat, lng=$lng | " +
+            "file=${f?.absolutePath ?: "?"}, exists=${f?.exists()}"
+        )
     }
 
-    fun latitude(): Double? {
-        refresh(System.currentTimeMillis())
-        return value(lat)
-    }
-
-    fun longitude(): Double? {
-        refresh(System.currentTimeMillis())
-        return value(lng)
-    }
+    fun latitude(): Double? { refresh(System.currentTimeMillis()); return value(lat) }
+    fun longitude(): Double? { refresh(System.currentTimeMillis()); return value(lng) }
 
     private fun value(v: Double): Double? = if (active && !v.isNaN()) v else null
 
@@ -53,6 +51,7 @@ class SpoofConfig(private val targetId: String) {
     }
 
     companion object {
+        private const val MODULE_PACKAGE = "com.aya.doank"
         private const val RELOAD_INTERVAL_MS = 1000L
     }
 }
