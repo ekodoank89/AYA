@@ -99,7 +99,7 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- Panel play: GRAB / GOJEK -->
+    <!-- Panel play: menembus tepi kiri, konten terdorong 16dp efektif dari layar -->
     <LinearLayout
         android:id="@+id/playgroup"
         android:layout_width="wrap_content"
@@ -108,7 +108,10 @@
         android:layout_marginBottom="28dp"
         android:translationX="-8dp"
         android:orientation="vertical"
-        android:padding="10dp"
+        android:paddingStart="24dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="10dp"
         android:background="@drawable/bg_glass_panel"
         android:elevation="8dp">
 
