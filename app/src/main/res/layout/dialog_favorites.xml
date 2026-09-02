@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/fav_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp"
+        android:textColor="#99FFFFFF"
+        android:textSize="11sp"
+        android:text="Nama bebas. Tersimpan: posisi PIN saat ini." />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <EditText
+            android:id="@+id/fav_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_coord_chip"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp"
+            android:hint="Nama lokasi…"
+            android:maxLength="40"
+            android:inputType="text"
+            android:textColor="@color/label_text"
+            android:textColorHint="#66FFFFFF"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/fav_add"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_play_green_touch"
+            android:minWidth="0dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:text="SIMPAN" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/fav_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        android:gravity="center"
+        android:textColor="#66FFFFFF"
+        android:textSize="13sp"
+        android:text="Belum ada lokasi tersimpan." />
+
+    <ScrollView
+        android:id="@+id/fav_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="320dp">
+
+        <LinearLayout
+            android:id="@+id/fav_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+</LinearLayout>
