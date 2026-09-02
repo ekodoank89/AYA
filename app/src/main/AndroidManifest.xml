@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Manager harus melihat package target agar broadcast push sampai.
+         (Daftar statis; Tahap 3 akan diganti queries intent-launcher agar dinamis.) -->
+    <queries>
+        <package android:name="com.gojek.partner" />
+        <package android:name="com.grabtaxi.driver2" />
+    </queries>
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -25,7 +32,6 @@
             android:name="xposedminversion"
             android:value="82" />
 
-        <!-- Jembatan config manager → hook (pengganti XSharedPreferences) -->
         <provider
             android:name=".core.ConfigProvider"
             android:authorities="com.aya.doank.config"
