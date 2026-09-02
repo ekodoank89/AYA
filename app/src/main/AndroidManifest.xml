@@ -49,6 +49,11 @@
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
+
+        <receiver
+            android:name="com.aya.doank.core.NotifController$StopReceiver"
+            android:exported="false" />    
+                
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
