@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import com.aya.doank.core.ConfigProvider
+import com.aya.doank.core.ConfigPusher    // ← TAMBAHKAN INI
 import com.aya.doank.core.Keys
 import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
