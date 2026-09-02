@@ -9,10 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "com.aya.doank"
-        minSdk = 30          // Android 11
-        targetSdk = 36       // Android 16
-        versionCode = 9
-        versionName = "1.8"
+        minSdk = 30
+        targetSdk = 36
+        versionCode = 10
+        versionName = "1.9"
         manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
@@ -45,4 +45,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Xposed API: compileOnly = TIDAK ikut ter-dex ke APK (LSPosed menyediakannya saat runtime)
+    compileOnly("de.robv.android.xposed:api:82")
 }
