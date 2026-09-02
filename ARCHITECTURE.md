@@ -17,7 +17,8 @@ Tambah target (C, D, ...)	core/SpoofTarget.kt (Targets) + layout + strings
 Perilaku peta/kamera	ui/MapController.kt
 Alur izin	ui/PermissionFlow.kt
 Hook baru	xposed/hooks/*.kt + daftarkan di xposed/HookEntry.kt
-Nama key storage	core/Keys.kt (SEKALI, di satu tempat)
+Nama key storage	core/Keys.kt (SEKALI, di satu tempat).
+| Ganti package target sementara | xposed/TargetMap.kt (sampai Tahap 3) |
 
 
 Konvensi
