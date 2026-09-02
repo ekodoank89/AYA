@@ -6,7 +6,7 @@ import de.robv.android.xposed.XposedBridge
 
 /**
  * Pembaca config spoof untuk SATU target di dalam proses app target.
- * Reload di-throttle 1 detik (getLatitude bisa dipanggil ratusan kali/detik).
+ * Dibaca lewat daemon LSPosed (XSharedPreferences), throttle 1 detik.
  */
 class SpoofConfig(private val targetId: String) {
 
@@ -19,11 +19,10 @@ class SpoofConfig(private val targetId: String) {
 
     init {
         refresh(now = System.currentTimeMillis(), force = true)
-        // === DIAGNOSTIK: satu log pembuka yang menunjukkan apa yang benar-benar terbaca ===
-        val f = try { sp.file } catch (t: Throwable) { null }
+        // Catatan: file.exists() dari proses target SELALU false (SELinux) — bukan indikasi masalah.
         XposedBridge.log(
-            "AYA [$targetId]: config awal → active=$active, lat=$lat, lng=$lng | " +
-            "file=${f?.absolutePath ?: "?"}, exists=${f?.exists()}"
+            "AYA [$targetId]: config awal → active=$active, lat=$lat, lng=$lng " +
+            "(prefs: ${MODULE_PACKAGE}/${Keys.PREFS_NAME})"
         )
     }
 
