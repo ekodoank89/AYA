@@ -26,7 +26,7 @@ class HookEntry : IXposedHookLoadPackage {
         hookGmsLocationResult(lpparam.classLoader, config)
     }
 
-    // ===== 1) Getter: membaca koordinat dari objek Location mana pun =====
+    // ===== Getter: mengganti hasil pembacaan koordinat =====
     private fun hookLocationGetters(classLoader: ClassLoader, config: SpoofConfig) {
         val loggedFirst = AtomicBoolean(false)
         try {
@@ -53,7 +53,7 @@ class HookEntry : IXposedHookLoadPackage {
         }
     }
 
-    // ===== 2) getLastKnownLocation: tulis fake ke FIELD objek (konsistensi penuh) =====
+    // ===== getLastKnownLocation: tulis fake ke FIELD (konsistensi penuh) =====
     private fun hookLastKnownLocation(classLoader: ClassLoader, config: SpoofConfig) {
         try {
             XposedHelpers.findAndHookMethod(
@@ -69,7 +69,7 @@ class HookEntry : IXposedHookLoadPackage {
         }
     }
 
-    // ===== 3) GMS LocationResult: jalur FusedLocation milik app modern =====
+    // ===== GMS LocationResult: jalur FusedLocation app modern =====
     private fun hookGmsLocationResult(classLoader: ClassLoader, config: SpoofConfig) {
         try {
             val cls = XposedHelpers.findClassIfExists(GMS_LOCATION_RESULT, classLoader)
@@ -117,21 +117,25 @@ class HookEntry : IXposedHookLoadPackage {
         }
     }
 
+    /**
+     * Satu sumber kebenaran: Targets.all di core.
+     * Urutan cek: override prefs (Tahap 3) → packageNames bawaan.
+     */
     private fun resolveTargetId(pkg: String): String? {
         val sp = try {
             XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME)
         } catch (t: Throwable) {
             XposedBridge.log("AYA: XSharedPreferences gagal dibuka: $t")
-            return TargetMap.lookup(pkg)
+            return Targets.all.firstOrNull { pkg in it.packageNames }?.id
         }
         return try {
             sp.reload()
             for (t in Targets.all) {
                 if (sp.getString(Keys.targetPkgKey(t.id), null) == pkg) return t.id
             }
-            TargetMap.lookup(pkg)
+            Targets.all.firstOrNull { pkg in it.packageNames }?.id
         } catch (t: Throwable) {
-            TargetMap.lookup(pkg)
+            Targets.all.firstOrNull { pkg in it.packageNames }?.id
         }
     }
 
