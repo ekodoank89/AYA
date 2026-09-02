@@ -1,16 +1,14 @@
 package com.aya.doank.xposed
 
+import android.app.Application
 import android.net.Uri
 import com.aya.doank.core.ConfigProvider
 import com.aya.doank.core.Keys
-import de.robv.android.xposed.AndroidAppHelper
 import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
 
 /**
  * Pembaca config SATU target. Rantai jalur: remote (Provider) → XSP (fallback).
- * Catatan diagnostik: "config awal" saat init TIDAK representatif — Application
- * belum ada saat proses target start, jadi jalur remote baru hidup saat runtime.
  * Indikator kebenaran = log "transport config" dan "spoof AKTIF", bukan baris init.
  */
 class SpoofConfig(private val targetId: String) {
@@ -49,10 +47,23 @@ class SpoofConfig(private val targetId: String) {
         }
     }
 
-    /** Jalur utama: ContentProvider milik manager — tanpa library, IPC Binder standar. */
+    /**
+     * Application proses target via refleksi ActivityThread —
+     * pengganti AndroidAppHelper yang tidak tersedia di stub api-82.
+     * Bisa null di awal umur proses → caller menangani (retry di tick berikutnya).
+     */
+    private fun currentApplication(): Application? = try {
+        Class.forName("android.app.ActivityThread")
+            .getMethod("currentApplication")
+            .invoke(null) as? Application
+    } catch (t: Throwable) {
+        null
+    }
+
+    /** Jalur utama: ContentProvider milik manager — IPC Binder standar, tanpa library. */
     private fun readRemote(): Boolean {
         return try {
-            val app = AndroidAppHelper.currentApplication() ?: return false
+            val app = currentApplication() ?: return false
             val b = app.contentResolver.call(
                 Uri.parse("content://${ConfigProvider.AUTHORITY}"),
                 ConfigProvider.METHOD_SPOOF, targetId, null
@@ -71,7 +82,7 @@ class SpoofConfig(private val targetId: String) {
         }
     }
 
-    /** Fallback: XSharedPreferences — deprecated, tapi tetap disertakan sebagai jaring pengaman. */
+    /** Fallback: XSharedPreferences — deprecated, tapi disertakan sebagai jaring pengaman. */
     private fun readXsp(): Boolean {
         return try {
             xsp.reload()
