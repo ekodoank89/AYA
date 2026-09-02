@@ -15,7 +15,6 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
-        <!-- ==== Deklarasi modul Xposed ==== -->
         <meta-data
             android:name="xposedmodule"
             android:value="true" />
@@ -25,6 +24,12 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
+
+        <!-- Jembatan config manager → hook (pengganti XSharedPreferences) -->
+        <provider
+            android:name=".core.ConfigProvider"
+            android:authorities="com.aya.doank.config"
+            android:exported="true" />
 
         <activity
             android:name=".MainActivity"
