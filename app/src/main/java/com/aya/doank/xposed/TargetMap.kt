@@ -13,10 +13,10 @@ package com.aya.doank.xposed
  */
 object TargetMap {
     private val BUILTIN = mapOf(
-        "com.grabtaxi.passenger" to "grab",   // Grab - penumpang
-        "com.grabtaxi.driver2" to "grab",          // Grab - driver
-        "com.gojek.app" to "gojek",           // Gojek - customer
-        "com.gojek.partner" to "gojek"         // Gojek - driver (verifikasi!)
+        "com.grabtaxi.passenger" to "grab-cs",   // Grab - penumpang
+        "com.grabtaxi.driver2" to "grab-driver",          // Grab - driver
+        "com.gojek.app" to "gojek-cs",           // Gojek - customer
+        "com.gojek.partner" to "gojek-driver"         // Gojek - driver
     )
 
     fun lookup(pkg: String): String? = BUILTIN[pkg]
