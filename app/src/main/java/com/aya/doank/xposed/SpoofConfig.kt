@@ -1,29 +1,33 @@
 package com.aya.doank.xposed
 
+import android.net.Uri
+import com.aya.doank.core.ConfigProvider
 import com.aya.doank.core.Keys
+import de.robv.android.xposed.AndroidAppHelper
 import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
 
 /**
- * Pembaca config spoof untuk SATU target di dalam proses app target.
- * Dibaca lewat daemon LSPosed (XSharedPreferences), throttle 1 detik.
+ * Pembaca config SATU target. Rantai jalur: remote (Provider) → XSP (fallback).
+ * Catatan diagnostik: "config awal" saat init TIDAK representatif — Application
+ * belum ada saat proses target start, jadi jalur remote baru hidup saat runtime.
+ * Indikator kebenaran = log "transport config" dan "spoof AKTIF", bukan baris init.
  */
 class SpoofConfig(private val targetId: String) {
 
-    private val sp = XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME)
     private var lastReload = 0L
     private var active = false
     private var lat = Double.NaN
     private var lng = Double.NaN
     private var lastLoggedActive = false
+    private var transport = TRANSPORT_NONE
+    private var loggedRemoteFail = false
+
+    private val xsp by lazy { XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME) }
 
     init {
         refresh(now = System.currentTimeMillis(), force = true)
-        // Catatan: file.exists() dari proses target SELALU false (SELinux) — bukan indikasi masalah.
-        XposedBridge.log(
-            "AYA [$targetId]: config awal → active=$active, lat=$lat, lng=$lng " +
-            "(prefs: ${MODULE_PACKAGE}/${Keys.PREFS_NAME})"
-        )
+        XposedBridge.log("AYA [$targetId]: modul config dimuat (transport awal: $transport)")
     }
 
     fun latitude(): Double? { refresh(System.currentTimeMillis()); return value(lat) }
@@ -34,23 +38,66 @@ class SpoofConfig(private val targetId: String) {
     private fun refresh(now: Long, force: Boolean = false) {
         if (!force && now - lastReload < RELOAD_INTERVAL_MS) return
         lastReload = now
-        try {
-            sp.reload()
-            active = sp.getBoolean(Keys.spoofActive(targetId), false)
-            lat = sp.getString(Keys.spoofLat(targetId), null)?.toDoubleOrNull() ?: Double.NaN
-            lng = sp.getString(Keys.spoofLng(targetId), null)?.toDoubleOrNull() ?: Double.NaN
-            if (active != lastLoggedActive) {
-                lastLoggedActive = active
-                if (active) XposedBridge.log("AYA [$targetId]: spoof AKTIF → $lat, $lng")
-                else XposedBridge.log("AYA [$targetId]: spoof dimatikan")
-            }
+
+        val got = readRemote() || readXsp()
+        if (!got) return
+
+        if (active != lastLoggedActive) {
+            lastLoggedActive = active
+            if (active) XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $lat, $lng")
+            else XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
+        }
+    }
+
+    /** Jalur utama: ContentProvider milik manager — tanpa library, IPC Binder standar. */
+    private fun readRemote(): Boolean {
+        return try {
+            val app = AndroidAppHelper.currentApplication() ?: return false
+            val b = app.contentResolver.call(
+                Uri.parse("content://${ConfigProvider.AUTHORITY}"),
+                ConfigProvider.METHOD_SPOOF, targetId, null
+            ) ?: return false
+            active = b.getBoolean("active", false)
+            lat = b.getString("lat")?.toDoubleOrNull() ?: Double.NaN
+            lng = b.getString("lng")?.toDoubleOrNull() ?: Double.NaN
+            setTransport(TRANSPORT_REMOTE)
+            true
         } catch (t: Throwable) {
-            XposedBridge.log("AYA [$targetId]: gagal baca config: $t")
+            if (!loggedRemoteFail) {
+                loggedRemoteFail = true
+                XposedBridge.log("AYA [$targetId]: jalur remote gagal → fallback XSP. Penyebab: $t")
+            }
+            false
+        }
+    }
+
+    /** Fallback: XSharedPreferences — deprecated, tapi tetap disertakan sebagai jaring pengaman. */
+    private fun readXsp(): Boolean {
+        return try {
+            xsp.reload()
+            active = xsp.getBoolean(Keys.spoofActive(targetId), false)
+            lat = xsp.getString(Keys.spoofLat(targetId), null)?.toDoubleOrNull() ?: Double.NaN
+            lng = xsp.getString(Keys.spoofLng(targetId), null)?.toDoubleOrNull() ?: Double.NaN
+            setTransport(TRANSPORT_XSP)
+            true
+        } catch (t: Throwable) {
+            XposedBridge.log("AYA [$targetId]: XSP fallback juga gagal: $t")
+            false
+        }
+    }
+
+    private fun setTransport(t: String) {
+        if (transport != t) {
+            transport = t
+            XposedBridge.log("AYA [$targetId]: transport config = $t")
         }
     }
 
     companion object {
         private const val MODULE_PACKAGE = "com.aya.doank"
         private const val RELOAD_INTERVAL_MS = 1000L
+        private const val TRANSPORT_NONE = "belum-terhubung"
+        private const val TRANSPORT_REMOTE = "remote"
+        private const val TRANSPORT_XSP = "xsp-fallback"
     }
 }
