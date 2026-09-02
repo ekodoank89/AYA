@@ -45,13 +45,14 @@
             android:exported="true" />
 
         <!-- Receiver tombol STOP di notifikasi — ANAK LANGSUNG <application> -->
-        <receiver
-            android:name="com.aya.doank.core.NotifController$StopReceiver"
+                <receiver
+            android:name="com.aya.doank.ui.NotifController$StopReceiver"
             android:exported="false" />
 
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
