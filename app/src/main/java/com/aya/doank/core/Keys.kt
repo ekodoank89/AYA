@@ -5,13 +5,16 @@ object Keys {
     const val IS_DARK = "is_dark"
     const val ASKED_LOCATION = "asked_location"
 
-    // ==== Schema spoof — DIBACA HOOK di proses target (Tahap 2). Jangan diubah sembarangan! ====
-    // Satu titik lock PER TARGET (GRAB & GOJEK bisa lock di koordinat berbeda).
+    // ==== Schema spoof — DIBACA HOOK di proses target. Jangan diubah sembarangan! ====
     private const val KEY_ACTIVE_TEMPLATE = "spoof_%s_active"
     private const val KEY_LAT_TEMPLATE = "spoof_%s_lat"
     private const val KEY_LNG_TEMPLATE = "spoof_%s_lng"
+    private const val KEY_PKG_TEMPLATE = "pkg_%s"
 
     fun spoofActive(id: String) = KEY_ACTIVE_TEMPLATE.format(id)
     fun spoofLat(id: String) = KEY_LAT_TEMPLATE.format(id)
     fun spoofLng(id: String) = KEY_LNG_TEMPLATE.format(id)
+
+    /** Nama package override per target — ditulis manager (Tahap 3, UI pemilih app). */
+    fun targetPkgKey(id: String) = KEY_PKG_TEMPLATE.format(id)
 }
