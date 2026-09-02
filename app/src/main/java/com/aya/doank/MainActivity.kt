@@ -1,6 +1,7 @@
 package com.aya.doank
 
 import android.Manifest
+import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
@@ -13,12 +14,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.aya.doank.core.ConfigPusher
 import com.aya.doank.core.FavoritesStore
-import com.aya.doank.core.NotifController
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.MapController
+import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
 import com.google.android.gms.maps.SupportMapFragment
@@ -34,10 +35,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
 
     // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
-    // Hasil deny/allow dinilai saat ▶ ditekan lewat notifs.canNotify().
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* tidak melakukan apa-apa; evaluasi ulang saat ▶ ditekan */ }
+    ) { /* deny/allow dinilai ulang saat ▶ ditekan via canNotify() */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             FavoritesStore(this),
             centerProvider = { map.currentCenter() }
         ) { latLng, name ->
-            map.flyTo(latLng)   // pin selalu di tengah layar → memindah peta = "memindahkan pin"
+            map.flyTo(latLng)
             Toast.makeText(this, "Pin → $name. Tekan ▶ untuk lock.", Toast.LENGTH_SHORT).show()
         }
 
@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
-        // Tombol ■ di notifikasi → masuk lewat broadcast → stop target terkait
+        // Tombol ■ di notifikasi → broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
             runOnUiThread { stopFromNotif(targetId) }
         }
@@ -91,7 +91,6 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= 33) Context.RECEIVER_NOT_EXPORTED else 0
         )
 
-        // Chip pin GONE — callback tetap disiapkan agar mudah diaktifkan kembali
         map.onCenterChanged = { _, _ -> }
         map.onBlueDotChanged = { _, _ -> playPanel.onBlueDotChanged() }
 
@@ -112,7 +111,6 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        // ==== Minta izin lokasi saat pertama dibuka / setelah hapus data ====
         if (permissionFlow.hasPermission()) {
             map.ensureBlueDot()
         } else {
@@ -126,8 +124,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Sinkronkan notifikasi dengan state tersimpan
-        // (contoh: app dibuka ulang saat spoofing masih aktif → notif kembali tampil)
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
@@ -142,7 +138,6 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
-    // ===== Stop dari tombol notifikasi =====
     private fun stopFromNotif(targetId: String) {
         val t = Targets.byId(targetId)
         prefs.setSpoofActive(t.id, false)
