@@ -5,6 +5,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Button
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +16,7 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.NotifController
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
+import com.aya.doank.core.Targets
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.MapController
 import com.aya.doank.ui.PermissionFlow
@@ -30,6 +33,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifs: NotifController
     private lateinit var favorites: FavoritesController
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
+    // Hasil deny/allow dinilai saat ▶ ditekan lewat notifs.canNotify().
+    private val notifPermLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* tidak melakukan apa-apa; evaluasi ulang saat ▶ ditekan */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -43,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             FavoritesStore(this),
             centerProvider = { map.currentCenter() }
         ) { latLng, name ->
-            map.flyTo(latLng)   // pin = tengah layar → pindah peta = pin "pindah"
+            map.flyTo(latLng)   // pin selalu di tengah layar → memindah peta = "memindahkan pin"
             Toast.makeText(this, "Pin → $name. Tekan ▶ untuk lock.", Toast.LENGTH_SHORT).show()
         }
 
@@ -72,15 +81,9 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
+        // Tombol ■ di notifikasi → masuk lewat broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
-            runOnUiThread {
-                val t = com.aya.doank.core.Targets.byId(targetId)
-                prefs.setSpoofActive(t.id, false)
-                pusher.push(t)
-                playPanel.refresh(t.id)
-                notifs.hide(t)
-                Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
-            }
+            runOnUiThread { stopFromNotif(targetId) }
         }
         registerReceiver(
             NotifController.StopReceiver(),
@@ -88,17 +91,18 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= 33) Context.RECEIVER_NOT_EXPORTED else 0
         )
 
-        map.onCenterChanged = { _, _ -> /* chip pin GONE — callback disiapkan untuk masa depan */ }
+        // Chip pin GONE — callback tetap disiapkan agar mudah diaktifkan kembali
+        map.onCenterChanged = { _, _ -> }
         map.onBlueDotChanged = { _, _ -> playPanel.onBlueDotChanged() }
 
         favorites.bind(R.id.btn_fav)
 
-        findViewById<android.widget.Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
-        findViewById<android.widget.Button>(R.id.btn_zoom_out).setOnClickListener { map.zoomOut() }
-        findViewById<android.widget.ImageButton>(R.id.btn_my_location).setOnClickListener {
+        findViewById<Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
+        findViewById<Button>(R.id.btn_zoom_out).setOnClickListener { map.zoomOut() }
+        findViewById<ImageButton>(R.id.btn_my_location).setOnClickListener {
             permissionFlow.requestOrGuide()
         }
-        findViewById<android.widget.ImageButton>(R.id.btn_theme).setOnClickListener {
+        findViewById<ImageButton>(R.id.btn_theme).setOnClickListener {
             prefs.isDark = !prefs.isDark
             map.applyStyle(prefs.isDark)
             updateThemeIcon()
@@ -108,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
+        // ==== Minta izin lokasi saat pertama dibuka / setelah hapus data ====
         if (permissionFlow.hasPermission()) {
             map.ensureBlueDot()
         } else {
@@ -117,28 +122,42 @@ class MainActivity : AppCompatActivity() {
         requestNotifPermissionIfNeeded()
     }
 
-    private fun requestNotifPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
-        // Sinkronkan notif dengan state tersimpan (app dibuka ulang saat spoofing jalan)
-        com.aya.doank.core.Targets.all.forEach { t ->
+
+        // Sinkronkan notifikasi dengan state tersimpan
+        // (contoh: app dibuka ulang saat spoofing masih aktif → notif kembali tampil)
+        Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
-            } else notifs.hide(t)
+            } else {
+                notifs.hide(t)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         if (::map.isInitialized) map.stop()
+    }
+
+    // ===== Stop dari tombol notifikasi =====
+    private fun stopFromNotif(targetId: String) {
+        val t = Targets.byId(targetId)
+        prefs.setSpoofActive(t.id, false)
+        pusher.push(t)
+        playPanel.refresh(t.id)
+        notifs.hide(t)
+        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun requestNotifPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
@@ -148,7 +167,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateThemeIcon() {
-        findViewById<android.widget.ImageButton>(R.id.btn_theme)
+        findViewById<ImageButton>(R.id.btn_theme)
             .setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
     }
 }
