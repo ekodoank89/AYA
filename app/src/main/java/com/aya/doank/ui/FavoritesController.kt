@@ -23,6 +23,9 @@ class FavoritesController(
     private val centerProvider: () -> LatLng?,
     private val onPick: (LatLng, String) -> Unit
 ) {
+    // Field kelas — boleh direferensikan local function kapan pun (berbeda dari variabel lokal)
+    private var dialog: AlertDialog? = null
+
     fun bind(btnId: Int) {
         activity.findViewById<View>(btnId).setOnClickListener { show() }
     }
@@ -35,8 +38,8 @@ class FavoritesController(
 
         fun render() {
             val favs = store.all()
-            empty.visibility  = if (favs.isEmpty()) View.VISIBLE else View.GONE
-            list.visibility   = if (favs.isEmpty()) View.GONE else View.VISIBLE
+            empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
+            list.visibility  = if (favs.isEmpty()) View.GONE else View.VISIBLE
             list.removeAllViews()
             favs.forEachIndexed { i, f ->
                 val item = LayoutInflater.from(activity)
@@ -49,7 +52,7 @@ class FavoritesController(
                 }
                 item.setOnClickListener {
                     onPick(LatLng(f.lat, f.lng), f.name)
-                    dialog.dismiss()
+                    dialog?.dismiss()
                 }
                 list.addView(item)
             }
@@ -62,7 +65,10 @@ class FavoritesController(
                 return@setOnClickListener
             }
             val c = centerProvider()
-            if (c == null) { Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (c == null) {
+                Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             if (store.add(name, c.latitude, c.longitude)) {
                 nameEt.text.clear(); render()
             } else {
@@ -70,9 +76,11 @@ class FavoritesController(
             }
         }
 
-        val dialog = AlertDialog.Builder(activity, com.aya.doank.R.style.Theme_AYA_Dialog)
-            .setView(v).create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.show()
+        dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setView(v)
+            .create()
+        dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog?.show()
+        render()
     }
 }
