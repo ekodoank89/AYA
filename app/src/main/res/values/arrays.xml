@@ -1,0 +1,11 @@
+<resources>
+    <!-- Recommended scope untuk LSPosed: muncul sebagai rekomendasi ber-tanda,
+         bisa dicentang cepat dari halaman scope modul.
+         ⚠️ Verifikasi package customer di HP Anda (lihat catatan). -->
+    <string-array name="xposed_scope">
+        <item>com.grabtaxi.driver2</item>
+        <item>com.grabtaxi.passenger</item>
+        <item>com.gojek.partner</item>
+        <item>com.gojek.app</item>
+    </string-array>
+</resources>
