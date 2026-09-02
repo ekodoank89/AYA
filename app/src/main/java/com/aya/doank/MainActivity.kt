@@ -31,7 +31,15 @@ class MainActivity : AppCompatActivity() {
 
         prefs = Prefs(this)
         map = MapController(this, prefs)
-        permissionFlow = PermissionFlow(this, prefs) { map.ensureBlueDot() }
+
+        // onGranted dipanggil PermissionFlow saat: (1) izin sudah ada, atau
+        // (2) user baru saja mengabulkan dialog izin.
+        // FIX #2: selain mengaktifkan titik biru, langsung fokuskan kamera (GPS segar).
+        permissionFlow = PermissionFlow(this, prefs) {
+            map.ensureBlueDot()
+            map.focusFresh()
+        }
+
         playPanel = PlayPanelController(
             this, prefs,
             centerProvider = { map.currentCenter() },
@@ -44,7 +52,9 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
         findViewById<Button>(R.id.btn_zoom_out).setOnClickListener { map.zoomOut() }
-        findViewById<ImageButton>(R.id.btn_my_location).setOnClickListener { permissionFlow.requestOrGuide() }
+        findViewById<ImageButton>(R.id.btn_my_location).setOnClickListener {
+            permissionFlow.requestOrGuide()
+        }
 
         btnTheme.setOnClickListener {
             prefs.isDark = !prefs.isDark
@@ -55,10 +65,18 @@ class MainActivity : AppCompatActivity() {
 
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
+
+        // ==== FIX #1: minta izin saat pertama dibuka / setelah hapus data ====
+        if (permissionFlow.hasPermission()) {
+            map.ensureBlueDot()   // peta belum siap? aman — pendingEnsure menahan sampai onReady
+        } else {
+            permissionFlow.requestOrGuide()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        // Kembali dari Settings dengan izin baru → aktifkan titik biru (tanpa memaksa kamera lompat)
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
     }
 
