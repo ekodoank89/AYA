@@ -160,6 +160,18 @@
                     android:contentDescription="Mulai GRAB"
                     android:src="@drawable/ic_play" />
 
+                    <ImageButton
+        android:id="@+id/btn_fav"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_glass_panel"
+        android:padding="13dp"
+        android:elevation="8dp"
+        android:contentDescription="Lokasi tersimpan"
+        android:src="@drawable/ic_star" />
+
                 <!-- Chip koordinat GRAB: GONE sementara -->
                 <LinearLayout
                     android:id="@+id/chip_grab"
