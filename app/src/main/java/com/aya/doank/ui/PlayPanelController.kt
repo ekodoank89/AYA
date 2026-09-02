@@ -20,7 +20,7 @@ class PlayPanelController(
     private val onToggle: (target: SpoofTarget, active: Boolean) -> Unit
 ) {
     private class RowData(
-        val id: String, val btn: Int, val dot: Int,
+        val targetId: String, val btn: Int, val dot: Int,
         val chip: Int, val lat: Int, val lng: Int
     )
 
@@ -33,11 +33,12 @@ class PlayPanelController(
 
     fun bind() {
         listOf(
-            RowData("grab",  R.id.btn_grab,  R.id.dot_grab,  R.id.chip_grab,  R.id.chip_grab_lat,  R.id.chip_grab_lng),
-            RowData("gojek", R.id.btn_gojek, R.id.dot_gojek, R.id.chip_gojek, R.id.chip_gojek_lat, R.id.chip_gojek_lng)
+            // ID diambil dari Targets — SATU sumber kebenaran, sama dengan yang dibaca hook
+            RowData(Targets.GRAB.id,  R.id.btn_grab,  R.id.dot_grab,  R.id.chip_grab,  R.id.chip_grab_lat,  R.id.chip_grab_lng),
+            RowData(Targets.GOJEK.id, R.id.btn_gojek, R.id.dot_gojek, R.id.chip_gojek, R.id.chip_gojek_lat, R.id.chip_gojek_lng)
         ).forEach { d ->
             val row = Row(
-                d.id,
+                d.targetId,
                 activity.findViewById(d.btn),
                 activity.findViewById(d.dot),
                 activity.findViewById(d.chip),
@@ -45,7 +46,7 @@ class PlayPanelController(
                 activity.findViewById(d.lng)
             )
             rows.add(row)
-            render(row) // restore status dari prefs saat app dibuka lagi
+            render(row)
             row.btn.setOnClickListener { toggle(row) }
         }
     }
@@ -54,14 +55,12 @@ class PlayPanelController(
         val active = !prefs.isSpoofActive(row.targetId)
         prefs.setSpoofActive(row.targetId, active)
         if (active) {
-            // Lock koordinat pin SAAT INI untuk target ini
             centerProvider()?.let { prefs.setSpoofPoint(row.targetId, it.latitude, it.longitude) }
         }
         render(row)
         onToggle(Targets.byId(row.targetId), active)
     }
 
-    /** Dipanggil MapController tiap titik biru bergerak — chip target NONAKTIF mengikutinya. */
     fun onBlueDotChanged() {
         rows.forEach { if (!prefs.isSpoofActive(it.targetId)) render(it) }
     }
