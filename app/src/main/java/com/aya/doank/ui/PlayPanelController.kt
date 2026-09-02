@@ -65,6 +65,10 @@ class PlayPanelController(
         rows.forEach { if (!prefs.isSpoofActive(it.targetId)) render(it) }
     }
 
+    fun refresh(targetId: String) {
+        rows.firstOrNull { it.targetId == targetId }?.let { render(it) }
+    }
+
     private fun render(row: Row) {
         if (prefs.isSpoofActive(row.targetId)) {
             row.btn.setBackgroundResource(R.drawable.bg_play_green_touch)
