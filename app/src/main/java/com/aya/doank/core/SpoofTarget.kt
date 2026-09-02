@@ -1,16 +1,22 @@
 package com.aya.doank.core
 
 data class SpoofTarget(
-    val id: String,                  // kunci di prefs — HARUS konsisten karena dipakai kedua dunia
+    val id: String,                  // kunci di prefs — SATU sumber kebenaran (dibaca manager & hook)
     val label: String,               // teks UI manager
-    val packageNames: Set<String>    // package aplikasi target (bisa lebih dari satu)
+    val packageNames: Set<String>    // SEMUA package yang menerima config target ini
 )
 
 object Targets {
-    // ⚠️ Package di bawah diambil dari log LSPosed Anda — sudah terverifikasi.
-    // Tambah package lain? Cukup tambahkan ke set di sini.
-    val GRAB = SpoofTarget("grab-driver", "GRAB", setOf("com.grabtaxi.driver2"))
-    val GOJEK = SpoofTarget("gojek-driver", "GOJEK", setOf("com.gojek.partner"))
+    // Satu tombol = satu brand = driver + customer menerima koordinat yang sama.
+    // ID TIDAK diubah (grab-driver/gojek-driver) agar state tersimpan & hook tetap cocok.
+    val GRAB = SpoofTarget(
+        "grab-driver", "GRAB",
+        setOf("com.grabtaxi.driver2", "com.grabtaxi.passenger")
+    )
+    val GOJEK = SpoofTarget(
+        "gojek-driver", "GOJEK",
+        setOf("com.gojek.partner", "com.gojek.app")
+    )
 
     val all = listOf(GRAB, GOJEK)
     fun byId(id: String): SpoofTarget = all.first { it.id == id }
