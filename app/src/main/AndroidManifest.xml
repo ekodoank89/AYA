@@ -10,6 +10,8 @@
     <queries>
         <package android:name="com.gojek.partner" />
         <package android:name="com.grabtaxi.driver2" />
+        <package android:name="com.gojek.app" />
+        <package android:name="com.grabtaxi.passenger" />
     </queries>
 
     <application
@@ -31,6 +33,11 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
+        
+                <!-- Recommended scope: LSPosed menawarkan ceklis cepat untuk daftar ini -->
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
 
         <provider
             android:name=".core.ConfigProvider"
