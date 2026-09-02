@@ -1,11 +1,14 @@
 package com.aya.doank
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.aya.doank.core.ConfigPusher
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.ui.MapController
@@ -19,8 +22,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var map: MapController
     private lateinit var permissionFlow: PermissionFlow
     private lateinit var playPanel: PlayPanelController
+    private lateinit var pusher: ConfigPusher
     private lateinit var tvCenter: TextView
     private lateinit var btnTheme: ImageButton
+
+    private val pushHandler = Handler(Looper.getMainLooper())
+    private val pushRunnable = object : Runnable {
+        override fun run() {
+            pusher.pushAll()
+            pushHandler.postDelayed(this, PUSH_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,10 +43,8 @@ class MainActivity : AppCompatActivity() {
 
         prefs = Prefs(this)
         map = MapController(this, prefs)
+        pusher = ConfigPusher(this)
 
-        // onGranted dipanggil PermissionFlow saat: (1) izin sudah ada, atau
-        // (2) user baru saja mengabulkan dialog izin.
-        // FIX #2: selain mengaktifkan titik biru, langsung fokuskan kamera (GPS segar).
         permissionFlow = PermissionFlow(this, prefs) {
             map.ensureBlueDot()
             map.focusFresh()
@@ -44,9 +54,11 @@ class MainActivity : AppCompatActivity() {
             this, prefs,
             centerProvider = { map.currentCenter() },
             blueDotProvider = { map.blueDot }
-        ) { target, active -> announce(target, active) }
+        ) { target, active ->
+            pusher.push(target)   // toggle langsung didorong ke target (efek real-time)
+            announce(target, active)
+        }
 
-        // Chip pin sedang GONE, tapi tetap diperbarui agar mudah diaktifkan lagi nanti
         map.onCenterChanged = { _, _ -> tvCenter.text = map.centerText() }
         map.onBlueDotChanged = { _, _ -> playPanel.onBlueDotChanged() }
 
@@ -66,9 +78,8 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        // ==== FIX #1: minta izin saat pertama dibuka / setelah hapus data ====
         if (permissionFlow.hasPermission()) {
-            map.ensureBlueDot()   // peta belum siap? aman — pendingEnsure menahan sampai onReady
+            map.ensureBlueDot()
         } else {
             permissionFlow.requestOrGuide()
         }
@@ -76,8 +87,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Kembali dari Settings dengan izin baru → aktifkan titik biru (tanpa memaksa kamera lompat)
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
+        // Push berkala selama AYA terbuka: menangkap target yang baru saja start
+        pusher.pushAll()
+        pushHandler.postDelayed(pushRunnable, PUSH_INTERVAL_MS)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        pushHandler.removeCallbacks(pushRunnable)
     }
 
     override fun onDestroy() {
@@ -93,5 +111,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateThemeIcon() {
         btnTheme.setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
+    }
+
+    companion object {
+        private const val PUSH_INTERVAL_MS = 10_000L
     }
 }
