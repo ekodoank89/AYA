@@ -23,6 +23,11 @@ class Prefs(context: Context) {
     var jitterWindowSec: Int
         get() = sp.getString(Keys.JIT_WINDOW, null)?.toIntOrNull() ?: 6
         set(value) = sp.edit().putString(Keys.JIT_WINDOW, value.toString()).apply()
+
+    var askedBackground: Boolean
+        get() = sp.getBoolean(Keys.ASKED_BACKGROUND, false)
+        set(value) = sp.edit().putBoolean(Keys.ASKED_BACKGROUND, value).apply()
+
         
     fun setSpoofActive(id: String, active: Boolean) =
         sp.edit().putBoolean(Keys.spoofActive(id), active).apply()
