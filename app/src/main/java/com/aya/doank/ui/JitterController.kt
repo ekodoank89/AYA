@@ -15,10 +15,9 @@ import com.aya.doank.core.Prefs
 import com.aya.doank.core.Targets
 
 /**
- * Dialog jitter — v2.6.2: PER TARGET (GRAB|GOJEK), 3 parameter
- * (langkah, jendela, radius). Preset Diam/Normal/Aktif DIGANTIKAN tombol
- * "↺ Reset ke Default" dinamis (label + dua baris di-set dari kode —
- * aman dari aturan escape XML, beda dengan teks statis di layout).
+ * Dialog jitter — v2.6.2: PER TARGET (GRAB|GOJEK).
+ * FIX: tap segmen kini selalu memanggil syncSegment() — highlight
+ * (focus visual) berpindah sesuai target yang di-tap.
  */
 class JitterController(
     private val activity: Activity,
@@ -60,6 +59,7 @@ class JitterController(
 
         fun fmtStep(s: Float) = if (s % 1f == 0f) "${s.toInt()} m" else "$s m"
 
+        /** Highlight segmen mengikuti selectedId — dipanggil DI SETIAP perubahan. */
         fun syncSegment() {
             val sel = R.drawable.bg_mode_on
             val unsel = R.drawable.bg_mode_off
@@ -72,6 +72,7 @@ class JitterController(
         }
 
         fun syncAll() {
+            syncSegment()   // ← FIX: highlight ikut di-refresh setiap kali syncAll
             val s = prefs.jitterStep(selectedId)
             val w = prefs.jitterWindowSec(selectedId)
             val r = prefs.jitterRadius(selectedId)
@@ -81,18 +82,19 @@ class JitterController(
             lblStep.text = "Langkah per jendela: ${fmtStep(s)}"
             lblWin.text = "Jendela (interval): $w detik"
             lblRad.text = "Radius maksimal: ${fmtStep(r)}"
-            // Tombol reset: label dua baris — di-set dari KODE (aman untuk simbol apa pun)
             val d = prefs.defaultJitter(selectedId)
             btnReset.text = "↺ Reset ke Default ${targetLabel(selectedId)}\n" +
                 "${fmtStep(d.first)} / ${d.second} dtk / R${fmtStep(d.third)}"
         }
 
         segGrab.setOnClickListener {
+            if (selectedId == Targets.GRAB.id) return@setOnClickListener  // sudah aktif → abaikan
             selectedId = Targets.GRAB.id
             syncAll()
             toast("Menyetel: GRAB")
         }
         segGojek.setOnClickListener {
+            if (selectedId == Targets.GOJEK.id) return@setOnClickListener
             selectedId = Targets.GOJEK.id
             syncAll()
             toast("Menyetel: GOJEK")
