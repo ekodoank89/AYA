@@ -14,15 +14,15 @@ import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
 import java.util.Random
 import kotlin.math.cos
+import kotlin.math.sqrt
 
 /**
  * Pembaca config SATU target. Rantai: push → remote → xsp.
- * v2.3: jitter dinamis (step/window) — dibaca dari push/remote/xsp,
- * pergerakan titik berubah TANPA restart app target.
+ * v2.6: jitter 3-parameter dinamis (step/window/RADIUS per target)
+ * dengan CLAMP VEKTOR — jangkauan lingkaran sempurna, bukan persegi.
  */
 class SpoofConfig(private val targetId: String) {
 
-    // ==== State config ====
     private var lastReload = 0L
     private var active = false
     private var baseLat = Double.NaN
@@ -31,9 +31,9 @@ class SpoofConfig(private val targetId: String) {
     private var transport = TRANSPORT_NONE
     private var loggedRemoteFail = false
 
-    // ==== v2.3: jitter dinamis (nilai di-update dari push/remote/xsp) ====
     private var jStep = 2.5f
     private var jWin = 6
+    private var jRadius = 3f
     private var lastLoggedJitter: String? = null
     private val jitter = Jitter()
 
@@ -48,14 +48,13 @@ class SpoofConfig(private val targetId: String) {
         refresh(now = System.currentTimeMillis(), force = true)
         XposedBridge.log(
             "AYA [$targetId]: modul config dimuat (transport awal: $transport, " +
-            "jitter: $jStep m / $jWin dtk)"
+            "jitter: $jStep m / $jWin dtk / R$jRadius m)"
         )
     }
 
     fun latitude(): Double? = jittered()?.first
     fun longitude(): Double? = jittered()?.second
 
-    /** Koordinat pin + offset jitter (satu jendela = satu posisi konsisten). */
     private fun jittered(): Pair<Double, Double>? {
         refresh(System.currentTimeMillis())
         if (!active || baseLat.isNaN() || baseLng.isNaN()) return null
@@ -76,26 +75,28 @@ class SpoofConfig(private val targetId: String) {
         readXsp()
     }
 
+    private fun applyJitter(step: Float?, win: Int?, radius: Float?) {
+        step?.let { jStep = it }
+        win?.let { jWin = it }
+        radius?.let { jRadius = it }
+        val key = "$jStep/$jWin/$jRadius"
+        if (key != lastLoggedJitter) {
+            lastLoggedJitter = key
+            XposedBridge.log("AYA [$targetId]: jitter → $jStep m / $jWin dtk / R$jRadius m")
+        }
+    }
+
     private fun applyState(a: Boolean, la: Double, ln: Double, via: String) {
         val changed = (a != active) || (la != baseLat) || (ln != baseLng)
         active = a
         baseLat = la
         baseLng = ln
         setTransport(via)
-        if (changed) jitter.onBaseChanged(la)   // pin pindah → walk mulai dari 0
+        if (changed) jitter.onBaseChanged(la)
         if (active != lastLoggedActive) {
             lastLoggedActive = active
             if (active) XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $la, $ln")
             else XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
-        }
-        logJitterIfChanged()
-    }
-
-    private fun logJitterIfChanged() {
-        val key = "$jStep/$jWin"
-        if (key != lastLoggedJitter) {
-            lastLoggedJitter = key
-            XposedBridge.log("AYA [$targetId]: jitter → $jStep m / $jWin dtk")
         }
     }
 
@@ -106,10 +107,11 @@ class SpoofConfig(private val targetId: String) {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, i: Intent?) {
                     if (i?.getStringExtra(ConfigPusher.EXTRA_TARGET_ID) != targetId) return
-                    // v2.3: jitter ikut dalam push (bisa datang tanpa perubahan lock)
-                    i.getStringExtra("jit_step")?.toFloatOrNull()?.let { jStep = it }
-                    i.getStringExtra("jit_win")?.toIntOrNull()?.let { jWin = it }
-                    logJitterIfChanged()
+                    applyJitter(
+                        i.getStringExtra("jit_step")?.toFloatOrNull(),
+                        i.getStringExtra("jit_win")?.toIntOrNull(),
+                        i.getStringExtra("jit_radius")?.toFloatOrNull()
+                    )
                     val a = i.getBooleanExtra("active", false)
                     val la = i.getStringExtra("lat")?.toDoubleOrNull() ?: Double.NaN
                     val ln = i.getStringExtra("lng")?.toDoubleOrNull() ?: Double.NaN
@@ -144,9 +146,11 @@ class SpoofConfig(private val targetId: String) {
                 Uri.parse("content://${ConfigProvider.AUTHORITY}"),
                 ConfigProvider.METHOD_SPOOF, targetId, null
             ) ?: return false
-            b.getString("jit_step")?.toFloatOrNull()?.let { jStep = it }
-            b.getString("jit_win")?.toIntOrNull()?.let { jWin = it }
-            logJitterIfChanged()
+            applyJitter(
+                b.getString("jit_step")?.toFloatOrNull(),
+                b.getString("jit_win")?.toIntOrNull(),
+                b.getString("jit_radius")?.toFloatOrNull()
+            )
             applyState(
                 b.getBoolean("active", false),
                 b.getString("lat")?.toDoubleOrNull() ?: Double.NaN,
@@ -166,9 +170,11 @@ class SpoofConfig(private val targetId: String) {
     private fun readXsp(): Boolean {
         return try {
             xsp.reload()
-            xsp.getString(Keys.JIT_STEP, null)?.toFloatOrNull()?.let { jStep = it }
-            xsp.getString(Keys.JIT_WINDOW, null)?.toIntOrNull()?.let { jWin = it }
-            logJitterIfChanged()
+            applyJitter(
+                xsp.getString(Keys.jitStepKey(targetId), null)?.toFloatOrNull(),
+                xsp.getString(Keys.jitWinKey(targetId), null)?.toIntOrNull(),
+                xsp.getString(Keys.jitRadiusKey(targetId), null)?.toFloatOrNull()
+            )
             applyState(
                 xsp.getBoolean(Keys.spoofActive(targetId), false),
                 xsp.getString(Keys.spoofLat(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
@@ -190,13 +196,12 @@ class SpoofConfig(private val targetId: String) {
     }
 
     /**
-     * Random-walk GPS: offset bergerak bertahap dalam radius 5 m,
-     * langkah/interval dari config dinamis (jStep/jWin — inner class, akses langsung).
-     * Satu jendela = satu posisi konsisten untuk SEMUA pembacaan.
+     * Random-walk GPS dengan CLAMP VEKTOR: magnitude offset dibatasi jRadius
+     * (lingkaran sempurna — jangkauan sama di segala arah, sebaran bundar
+     * seperti GPS asli). Langkah & jendela dari config dinamis per target.
      */
     private inner class Jitter {
         private val rnd = Random()
-        private val maxOffMeters = 5.0      // radius klem — identitas fitur, tidak diekspos
         private var oLat = 0.0
         private var oLng = 0.0
         private var windowStart = 0L
@@ -218,8 +223,16 @@ class SpoofConfig(private val targetId: String) {
                 val mLng = 111320.0 * cos(Math.toRadians(baseLat))
                 oLat += ((rnd.nextDouble() - 0.5) * jStep) / mLat
                 oLng += ((rnd.nextDouble() - 0.5) * jStep) / mLng
-                oLat = oLat.coerceIn(-maxOffMeters / mLat, maxOffMeters / mLat)
-                oLng = oLng.coerceIn(-maxOffMeters / mLng, maxOffMeters / mLng)
+
+                // ==== CLAMP VEKTOR (lingkaran sempurna) ====
+                val dLatM = oLat * mLat
+                val dLngM = oLng * mLng
+                val dist = sqrt(dLatM * dLatM + dLngM * dLngM)
+                if (dist > jRadius) {
+                    val scale = jRadius / dist
+                    oLat = (dLatM * scale) / mLat
+                    oLng = (dLngM * scale) / mLng
+                }
             }
             return (baseLat + oLat) to (baseLng + oLng)
         }
