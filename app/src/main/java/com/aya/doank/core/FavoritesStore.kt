@@ -5,15 +5,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Penyimpanan lokasi tersimpan (list global, dipakai semua target).
- * Format: satu string JSON di prefs — atomic, mudah dimigrasi.
- * Order = urutan penyimpanan (terbaru di bawah).
+ * Penyimpanan lokasi favorit (list global). Satu string JSON di prefs — atomic.
+ * src: "pin" (dari posisi pin) | "manual" (input/diedit manual).
  */
 class FavoritesStore(context: Context) {
 
     private val sp = context.getSharedPreferences(Keys.PREFS_NAME, Context.MODE_PRIVATE)
 
-    data class Fav(val name: String, val lat: Double, val lng: Double)
+    data class Fav(val name: String, val lat: Double, val lng: Double, val src: String)
 
     fun all(): List<Fav> {
         val raw = sp.getString(Keys.FAVORITES, null) ?: return emptyList()
@@ -21,15 +20,25 @@ class FavoritesStore(context: Context) {
             val arr = JSONArray(raw)
             (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
-                Fav(o.getString("name"), o.getDouble("lat"), o.getDouble("lng"))
+                Fav(o.getString("name"), o.getDouble("lat"), o.getDouble("lng"),
+                    o.optString("src", "pin"))
             }
         } catch (t: Throwable) { emptyList() }
     }
 
-    fun add(name: String, lat: Double, lng: Double): Boolean {
+    fun add(name: String, lat: Double, lng: Double, src: String): Boolean {
         val list = all().toMutableList()
-        if (list.any { it.name.equals(name, ignoreCase = true) }) return false // nama duplikat ditolak
-        list.add(Fav(name, lat, lng))
+        if (list.any { it.name.equals(name, ignoreCase = true) }) return false
+        list.add(Fav(name, lat, lng, src))
+        save(list); return true
+    }
+
+    fun updateAt(index: Int, name: String, lat: Double, lng: Double): Boolean {
+        val list = all().toMutableList()
+        if (index !in list.indices) return false
+        // Duplikat nama diizinkan untuk item sendiri (index yang sama)
+        if (list.anyIndexed { j, it -> j != index && it.name.equals(name, ignoreCase = true) }) return false
+        list[index] = Fav(name, lat, lng, "manual")
         save(list); return true
     }
 
@@ -40,7 +49,13 @@ class FavoritesStore(context: Context) {
 
     private fun save(list: List<Fav>) {
         val arr = JSONArray()
-        list.forEach { arr.put(JSONObject().put("name", it.name).put("lat", it.lat).put("lng", it.lng)) }
+        list.forEach { arr.put(JSONObject().put("name", it.name).put("lat", it.lat)
+            .put("lng", it.lng).put("src", it.src)) }
         sp.edit().putString(Keys.FAVORITES, arr.toString()).apply()
+    }
+
+    private inline fun <T> List<T>.anyIndexed(predicate: (Int, T) -> Boolean): Boolean {
+        for ((i, v) in this.withIndex()) if (predicate(i, v)) return true
+        return false
     }
 }
