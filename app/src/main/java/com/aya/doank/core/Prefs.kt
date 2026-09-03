@@ -43,21 +43,31 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASK_AUTOSTART, true)
         set(value) = sp.edit().putBoolean(Keys.ASK_AUTOSTART, value).apply()
 
-    // ==== Jitter — PER TARGET (3 parameter, default dari kalibrasi per-app) ====
+    // ==== Jitter — PER TARGET (v2.6.2) ====
+    /** Default kalibrasi per target:
+     *  GOJEK : 3 m / 5 dtk / R4 m (lebih hidup — ritme baca lokasi lebih rapat)
+     *  GRAB  : 2 m / 8 dtk / R3 m (lebih kalem — layar sering mati, sampel jarang)
+     *  Publik: dipakai tombol "Reset ke Default" di dialog jitter. */
+    fun defaultJitter(id: String): Triple<Float, Int, Float> =
+        if (id == Targets.GOJEK.id) Triple(3f, 5, 4f) else Triple(2f, 8, 3f)
+
     fun jitterStep(id: String): Float =
-        sp.getString(Keys.jitStepKey(id), null)?.toFloatOrNull() ?: 2.5f
+        sp.getString(Keys.jitStepKey(id), null)?.toFloatOrNull()
+            ?: defaultJitter(id).first
 
     fun setJitterStep(id: String, value: Float) =
         sp.edit().putString(Keys.jitStepKey(id), value.toString()).apply()
 
     fun jitterWindowSec(id: String): Int =
-        sp.getString(Keys.jitWinKey(id), null)?.toIntOrNull() ?: 6
+        sp.getString(Keys.jitWinKey(id), null)?.toIntOrNull()
+            ?: defaultJitter(id).second
 
     fun setJitterWindowSec(id: String, value: Int) =
         sp.edit().putString(Keys.jitWinKey(id), value.toString()).apply()
 
     fun jitterRadius(id: String): Float =
-        sp.getString(Keys.jitRadiusKey(id), null)?.toFloatOrNull() ?: 3f
+        sp.getString(Keys.jitRadiusKey(id), null)?.toFloatOrNull()
+            ?: defaultJitter(id).third
 
     fun setJitterRadius(id: String, value: Float) =
         sp.edit().putString(Keys.jitRadiusKey(id), value.toString()).apply()
