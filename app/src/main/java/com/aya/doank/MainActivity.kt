@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -47,7 +48,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ===== RANTAI IZIN: Lokasi → Notifikasi → Baterai → (Auto-start guide) =====
-    private var chainRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,8 +72,7 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
-        // onSettled lokasi → langkah rantai BERIKUTNYA (bukan langsung notifikasi;
-        // nextChainStep() yang menentukan urutan)
+        // onSettled lokasi → langkah rantai berikutnya (nextChainStep yang mengatur urutan)
         permissionFlow.onSettled = { nextChainStep() }
 
         playPanel = PlayPanelController(
@@ -93,6 +92,7 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
+        // Tombol ■ di notifikasi → broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
             runOnUiThread { stopFromNotif(targetId) }
         }
@@ -103,6 +103,8 @@ class MainActivity : AppCompatActivity() {
         )
 
         favorites.bind(R.id.btn_fav)
+
+        // ==== v2.3: JITTER — baris keempat panel ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -130,8 +132,8 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Mesin status rantai — URUTAN: Lokasi → Notifikasi → Baterai → Auto-start.
-     * Setiap tahap selesai memanggil nextChainStep() lagi; semua cek berbasis
-     * status izin AKTUAL (bukan flag) — guard lama tidak menghalangi.
+     * Semua cek berbasis status izin AKTUAL; notif_chain_done mencegah dialog
+     * notifikasi muncul ulang tiap buka app setelah tahapnya pernah dijalankan.
      */
     private fun nextChainStep() {
         when {
@@ -139,9 +141,9 @@ class MainActivity : AppCompatActivity() {
             !permissionFlow.hasPermission() -> {
                 permissionFlow.requestOrGuide()   // onSettled → nextChainStep lagi
             }
-            // 2) NOTIFIKASI (sebelum baterai — urutan sesuai permintaan)
-            !notifPerm.isGranted() || !prefs.getBoolean("notif_chain_done", false) -> {
-                prefs.edit().putBoolean("notif_chain_done", true).apply()
+            // 2) NOTIFIKASI (sebelum baterai — urutan sesuai permintaan user)
+            !notifPerm.isGranted() || !prefs.notifChainDone -> {
+                prefs.notifChainDone = true
                 notifPerm.requestInChain { nextChainStep() }
             }
             // 3) BATERAI
