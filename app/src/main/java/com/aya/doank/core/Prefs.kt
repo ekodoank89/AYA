@@ -28,6 +28,9 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASKED_BACKGROUND, false)
         set(value) = sp.edit().putBoolean(Keys.ASKED_BACKGROUND, value).apply()
 
+    var jitterAskAutostart: Boolean
+        get() = sp.getBoolean(Keys.ASK_AUTOSTART, true)
+        set(value) = sp.edit().putBoolean(Keys.ASK_AUTOSTART, value).apply()
         
     fun setSpoofActive(id: String, active: Boolean) =
         sp.edit().putBoolean(Keys.spoofActive(id), active).apply()
