@@ -14,8 +14,8 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
 
 /**
- * Tombol ★ + dialog daftar lokasi tersimpan (list GLOBAL).
- * Tap item → onPick(lat,lng) → manager memindahkan peta (pin mengikuti tengah layar).
+ * Tombol ★ (dalam panel) + dialog favorit:
+ * 2 mode input (pin/manual, kolom vertikal), edit nama+koordinat, hapus berkonfirmasi.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -23,7 +23,6 @@ class FavoritesController(
     private val centerProvider: () -> LatLng?,
     private val onPick: (LatLng, String) -> Unit
 ) {
-    // Field kelas — boleh direferensikan local function kapan pun (berbeda dari variabel lokal)
     private var dialog: AlertDialog? = null
 
     fun bind(btnId: Int) {
@@ -32,9 +31,62 @@ class FavoritesController(
 
     private fun show() {
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
-        val nameEt = v.findViewById<EditText>(R.id.fav_name)
-        val list   = v.findViewById<LinearLayout>(R.id.fav_list)
-        val empty  = v.findViewById<TextView>(R.id.fav_empty)
+        val modePin    = v.findViewById<TextView>(R.id.mode_pin)
+        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
+        val nameEt     = v.findViewById<EditText>(R.id.fav_name)
+        val latlngRow  = v.findViewById<View>(R.id.latlng_row)
+        val latEt      = v.findViewById<EditText>(R.id.in_lat)
+        val lngEt      = v.findViewById<EditText>(R.id.in_lng)
+        val errTv      = v.findViewById<TextView>(R.id.fav_err)
+        val list       = v.findViewById<LinearLayout>(R.id.fav_list)
+        val empty      = v.findViewById<TextView>(R.id.fav_empty)
+        var mode = "pin"
+
+        fun clearErr() {
+            errTv.visibility = View.GONE
+            latEt.error = null; lngEt.error = null
+        }
+
+        fun setMode(m: String) {
+            mode = m
+            modePin.setBackgroundResource(
+                if (m == "pin") R.drawable.bg_mode_on else R.drawable.bg_mode_off)
+            modePin.setTextColor(
+                if (m == "pin") 0xFFC8F7D8.toInt() else 0x99FFFFFF)
+            modeManual.setBackgroundResource(
+                if (m == "manual") R.drawable.bg_mode_on else R.drawable.bg_mode_off)
+            modeManual.setTextColor(
+                if (m == "manual") 0xFFC8F7D8.toInt() else 0x99FFFFFF)
+            latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
+            clearErr()
+        }
+        modePin.setOnClickListener { setMode("pin") }
+        modeManual.setOnClickListener { setMode("manual") }
+
+        /** Validasi manual; koma→titik; null = invalid (err sudah ditampilkan). */
+        fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
+            clearErr()
+            val lat = la.text.toString().replace(',', '.').toDoubleOrNull()
+            val lng = ln.text.toString().replace(',', '.').toDoubleOrNull()
+            if (lat == null || lng == null) {
+                errTv.text = "Latitude & Longitude wajib angka desimal."
+                errTv.visibility = View.VISIBLE
+                if (lat == null) la.error = " "
+                if (lng == null) ln.error = " "
+                return null
+            }
+            if (lat < -90 || lat > 90) {
+                errTv.text = "Latitude harus antara -90 sampai 90."
+                errTv.visibility = View.VISIBLE; la.error = " "
+                return null
+            }
+            if (lng < -180 || lng > 180) {
+                errTv.text = "Longitude harus antara -180 sampai 180."
+                errTv.visibility = View.VISIBLE; ln.error = " "
+                return null
+            }
+            return lat to lng
+        }
 
         fun render() {
             val favs = store.all()
@@ -47,9 +99,8 @@ class FavoritesController(
                 item.findViewById<TextView>(R.id.if_name).text = f.name
                 item.findViewById<TextView>(R.id.if_coord).text =
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
-                item.findViewById<View>(R.id.if_del).setOnClickListener {
-                    store.removeAt(i); render()
-                }
+                item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(i) }
+                item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(i) { render() } }
                 item.setOnClickListener {
                     onPick(LatLng(f.lat, f.lng), f.name)
                     dialog?.dismiss()
@@ -64,23 +115,86 @@ class FavoritesController(
                 Toast.makeText(activity, "Beri nama lokasinya dulu", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val c = centerProvider()
-            if (c == null) {
-                Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (store.add(name, c.latitude, c.longitude)) {
-                nameEt.text.clear(); render()
+            if (mode == "pin") {
+                val c = centerProvider()
+                if (c == null) {
+                    Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                if (store.add(name, c.latitude, c.longitude, "pin")) {
+                    nameEt.text.clear(); render()
+                } else Toast.makeText(activity, "Nama sudah dipakai", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(activity, "Nama sudah dipakai", Toast.LENGTH_SHORT).show()
+                val p = validate(latEt, lngEt) ?: return@setOnClickListener
+                if (store.add(name, p.first, p.second, "manual")) {
+                    nameEt.text.clear(); latEt.text.clear(); lngEt.text.clear(); render()
+                } else Toast.makeText(activity, "Nama sudah dipakai", Toast.LENGTH_SHORT).show()
             }
         }
 
         dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setView(v)
-            .create()
+            .setView(v).create()
         dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog?.show()
         render()
+    }
+
+    // ===== EDIT: nama + koordinat =====
+    private fun showEdit(i: Int) {
+        val f = store.all().getOrNull(i) ?: return
+        val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
+        val nameEt = v.findViewById<EditText>(R.id.e_name)
+        val latEt  = v.findViewById<EditText>(R.id.e_lat)
+        val lngEt  = v.findViewById<EditText>(R.id.e_lng)
+        val errTv  = v.findViewById<TextView>(R.id.e_err)
+        nameEt.setText(f.name)
+        latEt.setText(String.format(Locale.US, "%s", f.lat.toString()))
+        lngEt.setText(f.lng.toString())
+
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setView(v).create()
+        d.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
+        v.findViewById<View>(R.id.e_save).setOnClickListener {
+            val name = nameEt.text.toString().trim()
+            if (name.isEmpty()) {
+                errTv.text = "Nama tidak boleh kosong."; errTv.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+            val lat = latEt.text.toString().replace(',', '.').toDoubleOrNull()
+            val lng = lngEt.text.toString().replace(',', '.').toDoubleOrNull()
+            if (lat == null || lng == null || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                errTv.text = "Koordinat tidak valid (lat -90..90, lng -180..180)."
+                errTv.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+            if (store.updateAt(i, name, lat, lng)) {
+                d.dismiss(); render(); refreshDialogIfOpen()
+                Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
+            } else {
+                errTv.text = "Nama sudah dipakai lokasi lain."; errTv.visibility = View.VISIBLE
+            }
+        }
+        d.show()
+    }
+
+    // ===== HAPUS: konfirmasi =====
+    private fun askDelete(i: Int, after: () -> Unit) {
+        val f = store.all().getOrNull(i) ?: return
+        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Hapus lokasi?")
+            .setMessage("\"${f.name}\" akan dihapus permanen dari daftar favorit.")
+            .setPositiveButton("Hapus") { _, _ ->
+                store.removeAt(i); after()
+                Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    /** Render ulang dialog utama kalau sedang terbuka (misal habis edit). */
+    private fun refreshDialogIfOpen() {
+        if (dialog?.isShowing == true) { show() }
     }
 }
