@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp"
+    android:padding="22dp"
     android:background="@drawable/bg_dialog_card">
 
     <TextView
@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:text="Pergerakan Titik (Jitter)"
         android:textColor="@color/label_text"
-        android:textSize="16sp"
+        android:textSize="17sp"
         android:textStyle="bold"
         android:layout_marginBottom="6dp" />
 
@@ -19,15 +19,16 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#80FFFFFF"
-        android:textSize="11sp"
-        android:text="Titik yang dilihat app target bergerak halus di sekitar pin — meniru GPS asli. Perubahan langsung aktif." />
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:text="Titik yang dilihat app target bergerak halus di sekitar pin — meniru GPS asli. Perubahan langsung aktif tanpa restart." />
 
     <!-- Preset -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="14dp">
+        android:layout_marginTop="18dp">
 
         <TextView
             android:id="@+id/preset_diam"
@@ -35,14 +36,14 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:padding="10dp"
+            android:padding="14dp"
             android:background="@drawable/bg_mode_off"
             android:textColor="#99FFFFFF"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:text="Diam\n1m/10dtk" />
 
-        <Space android:layout_width="8dp" android:layout_height="1dp" />
+        <Space android:layout_width="10dp" android:layout_height="1dp" />
 
         <TextView
             android:id="@+id/preset_normal"
@@ -50,14 +51,14 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:padding="10dp"
+            android:padding="14dp"
             android:background="@drawable/bg_mode_on"
             android:textColor="#C8F7D8"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:text="Normal\n2,5m/6dtk" />
 
-        <Space android:layout_width="8dp" android:layout_height="1dp" />
+        <Space android:layout_width="10dp" android:layout_height="1dp" />
 
         <TextView
             android:id="@+id/preset_aktif"
@@ -65,10 +66,10 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:padding="10dp"
+            android:padding="14dp"
             android:background="@drawable/bg_mode_off"
             android:textColor="#99FFFFFF"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:text="Aktif\n5m/3dtk" />
     </LinearLayout>
@@ -78,15 +79,18 @@
         android:id="@+id/lbl_step"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="22dp"
         android:textColor="#B3FFFFFF"
-        android:textSize="12sp"
+        android:textSize="14sp"
         android:text="Langkah per jendela: 2,5 m" />
 
     <SeekBar
         android:id="@+id/seek_step"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
         android:min="1"
         android:max="16"
         android:progress="4" />
@@ -96,15 +100,18 @@
         android:id="@+id/lbl_win"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:textColor="#B3FFFFFF"
-        android:textSize="12sp"
+        android:textSize="14sp"
         android:text="Jendela (interval): 6 detik" />
 
     <SeekBar
         android:id="@+id/seek_win"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
         android:min="1"
         android:max="15"
         android:progress="6" />
@@ -112,11 +119,11 @@
     <Button
         android:id="@+id/btn_jitter_close"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="16dp"
+        android:layout_height="52dp"
+        android:layout_marginTop="22dp"
         android:background="@drawable/bg_play_green_touch"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:text="SELESAI" />
 </LinearLayout>
