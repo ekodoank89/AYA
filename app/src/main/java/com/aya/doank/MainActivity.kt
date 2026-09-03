@@ -40,9 +40,11 @@ class MainActivity : AppCompatActivity() {
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
-        // Setelah dialog ditutup (apapun hasilnya), tandai "pernah diminta"
         notifPerm.markAsked()
     }
+
+    // Urutan izin: LOKASI dulu → barulah NOTIFIKASI (permintaan user v2.2.3)
+    private var awaitingLocationSettle = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +69,14 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
+        // Sinyal "alur izin lokasi selesai" → baru minta izin notifikasi
+        permissionFlow.onSettled = {
+            if (awaitingLocationSettle) {
+                awaitingLocationSettle = false
+                notifPerm.requestAfterLocation()
+            }
+        }
+
         playPanel = PlayPanelController(
             this, prefs,
             centerProvider = { map.currentCenter() }
@@ -75,10 +85,9 @@ class MainActivity : AppCompatActivity() {
             if (active) {
                 val p = prefs.spoofPoint(target.id)
                 if (p != null) notifs.show(target, p.first, p.second)
-
-                // ==== GUARD IZIN NOTIFIKASI (v2.2.3) ====
-                // Kalau izin belum ada, pastikan user SADAR dulu — tapi tetap izinkan play.
-                notifPerm.ensureBeforePlay { }
+                if (!notifs.canNotify()) {
+                    notifPerm.ensureBeforePlay { }
+                }
             } else {
                 notifs.hide(target)
             }
@@ -112,20 +121,29 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
+        // ==== URUTAN IZIN: lokasi dulu → notifikasi menyusul (onSettled) ====
         if (permissionFlow.hasPermission()) {
             map.ensureBlueDot()
+            // Lokasi sudah granted (update app / buka ulang) → alur instan selesai
+            permissionFlow.onSettled?.invoke()
         } else {
+            awaitingLocationSettle = true
             permissionFlow.requestOrGuide()
         }
-
-        // ==== v2.2.3: minta izin notifikasi saat pertama kali buka ====
-        notifPerm.requestAtStartup()
     }
 
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
+        // Jalur "Buka Pengaturan" (lokasi diblokir): user kembali dari Settings.
+        // Kalau lokasi kini granted → alur lokasi dianggap selesai → notifikasi menyusul.
+        if (awaitingLocationSettle && permissionFlow.hasPermission()) {
+            awaitingLocationSettle = false
+            notifPerm.requestAfterLocation()
+        }
+
+        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
