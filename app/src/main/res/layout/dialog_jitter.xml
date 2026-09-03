@@ -57,9 +57,9 @@
         android:textColor="#80FFFFFF"
         android:textSize="12sp"
         android:lineSpacingExtra="2dp"
-        android:text="Setiap aplikasi punya setelan & default-nya sendiri. Perubahan langsung dikirim tanpa restart app target." />
+        android:text="Setiap aplikasi punya setelan dan default-nya sendiri. Perubahan langsung dikirim tanpa restart app target." />
 
-    <!-- RESET KE DEFAULT target terpilih (teks di-set dari kode) -->
+    <!-- RESET KE DEFAULT — teks final di-set dari kode (JitterController), statis hanya placeholder -->
     <Button
         android:id="@+id/btn_reset_default"
         android:layout_width="match_parent"
@@ -70,7 +70,7 @@
         android:textColor="#C8F7D8"
         android:textSize="13sp"
         android:textStyle="bold"
-        android:text="↺ Reset ke Default" />
+        android:text="Reset ke Default" />
 
     <!-- Slider langkah -->
     <TextView
