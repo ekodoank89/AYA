@@ -14,13 +14,15 @@ import com.aya.doank.core.Prefs
 
 /**
  * Dialog pengaturan jitter: preset + 2 slider, tersimpan & langsung di-push.
- * v2.3.1: dialog dilebarkan 92% (helper widen) — konsisten dengan dialog lain.
+ * v2.3.1: dialog 92% lebar; tombol SELESAI = push + tutup dialog (bukan hanya push).
  */
 class JitterController(
     private val activity: Activity,
     private val prefs: Prefs,
     private val pusher: ConfigPusher
 ) {
+    private var dialog: AlertDialog? = null
+
     fun bind(btnId: Int) {
         activity.findViewById<View>(btnId).setOnClickListener { show() }
     }
@@ -70,7 +72,6 @@ class JitterController(
         }
 
         fun pushAll() {
-            // Push ulang config ke semua target — jitter baru terbaca hook saat tick berikut
             pusher.pushAll()
         }
 
@@ -129,13 +130,17 @@ class JitterController(
             Toast.makeText(activity, "Preset Aktif", Toast.LENGTH_SHORT).show()
         }
 
-        v.findViewById<View>(R.id.btn_jitter_close).setOnClickListener { pushAll() }
+        // v2.3.1: SELESAI = push terakhir + TUTUP dialog (sesuai namanya)
+        v.findViewById<View>(R.id.btn_jitter_close).setOnClickListener {
+            pushAll()
+            dialog?.dismiss()
+        }
 
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        widen(d)
-        d.show()
+        dialog?.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        widen(dialog!!)
+        dialog?.show()
     }
 }
