@@ -14,10 +14,8 @@ import androidx.core.content.ContextCompat
 import com.aya.doank.R
 
 /**
- * Alur 3-jalur izin notifikasi (Android 13+):
- * granted → langsung; masih bisa dialog sistem → minta;
- * diblokir sistem (2x tolak) → arahkan ke Settings.
- * Prioritas: TIDAK memblokir spoofing — hanya memastikan kesadaran user.
+ * Alur 3-jalur izin notifikasi (Android 13+).
+ * Dipanggil SETELAH alur izin lokasi selesai (via onSettled) — bukan paralel dengannya.
  */
 class NotifPermissionFlow(
     private val activity: Activity,
@@ -27,7 +25,23 @@ class NotifPermissionFlow(
         Build.VERSION.SDK_INT < 33 ||
                 ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    /** Dipanggil sebelum ▶: kalau izin belum ada, minta/guide — TAPI tetap izinkan play. */
+    /**
+     * Permintaan "startup" — dipanggil tepat setelah alur lokasi selesai.
+     * Hanya SEKALI seumur hidup app (guard notif_asked); persuasi ulang
+     * saat ▶ ditangani ensureBeforePlay().
+     */
+    fun requestAfterLocation(): Boolean {
+        if (Build.VERSION.SDK_INT < 33) return false
+        if (isGranted()) return false
+        if (prefsAskedOnce()) return false          // sudah pernah → jalur ▶ yang menangani
+        if (!canShowSystemDialog()) return false    // diblokir → jalur ▶ yang menangani
+
+        markAsked()
+        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        return true
+    }
+
+    /** Dipanggil sebelum ▶: pastikan user SADAR — tapi TIDAK memblokir play. */
     fun ensureBeforePlay(onContinue: () -> Unit) {
         if (Build.VERSION.SDK_INT < 33) { onContinue(); return }
         if (isGranted()) { onContinue(); return }
@@ -36,23 +50,12 @@ class NotifPermissionFlow(
             Toast.makeText(activity,
                 "Izinkan notifikasi agar tombol STOP tersedia di status bar",
                 Toast.LENGTH_LONG).show()
+            markAsked()
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            // Play tetap diteruskan — user bisa main tanpa notif, tapi sudah diperingatkan
-            onContinue()
+            onContinue()   // play tetap jalan walau belum menjawab
         } else {
-            // Diblokir sistem → dialog app + Settings, play TETAP jalan
             showBlockedDialog(onContinue)
         }
-    }
-
-    /** Dipanggil saat buka app pertama: minta sekali, halus. */
-    fun requestAtStartup() {
-        if (Build.VERSION.SDK_INT < 33) return
-        if (isGranted()) return
-        if (canShowSystemDialog()) {
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        // Diblokir: tidak mengganggu di startup — cukup ditangani saat ▶
     }
 
     private fun canShowSystemDialog(): Boolean =
@@ -60,9 +63,6 @@ class NotifPermissionFlow(
                 ActivityCompat.shouldShowRequestPermissionRationale(
                     activity, Manifest.permission.POST_NOTIFICATIONS)
 
-    // Notifikasi berbeda dari lokasi: tidak perlu flag "pernah ditanya" —
-    // rationale=false + granted=false setelah pernah diminta = blokir permanen.
-    // Tapi "belum pernah diminta" juga false → gunakan SharedPreferences sederhana.
     private fun prefsAskedOnce(): Boolean =
         activity.getSharedPreferences("aya_prefs", Activity.MODE_PRIVATE)
             .getBoolean("notif_asked", false)
@@ -87,6 +87,7 @@ class NotifPermissionFlow(
                         data = Uri.fromParts("package", activity.packageName, null)
                     }
                 )
+                onContinue()
             }
             .setNegativeButton("Lanjut tanpa notifikasi") { _, _ -> onContinue() }
             .setOnCancelListener { onContinue() }
