@@ -2,6 +2,7 @@ package com.aya.doank.ui
 
 import android.app.Activity
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -33,22 +34,25 @@ class JitterController(
         fun fmtStep(s: Float) = if (s % 1f == 0f) "${s.toInt()} m" else "${s} m"
 
         fun syncPresets() {
-            val s = prefs.jitterStep; val w = prefs.jitterWindowSec
-            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
-            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
+            val s = prefs.jitterStep
+            val w = prefs.jitterWindowSec
+            val sel = R.drawable.bg_mode_on
+            val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt()
+            val off = 0x99FFFFFF.toInt()
 
             fun set(tv: TextView, hit: Boolean) {
                 tv.setBackgroundResource(if (hit) sel else unsel)
                 tv.setTextColor(if (hit) on else off)
             }
-            set(pDiam,   s == 1f  && w == 10)
+            set(pDiam,   s == 1f && w == 10)
             set(pNormal, s == 2.5f && w == 6)
-            set(pAktif,  s == 5f  && w == 3)
+            set(pAktif,  s == 5f && w == 3)
         }
 
         fun syncLabels() {
             lblStep.text = "Langkah per jendela: ${fmtStep(prefs.jitterStep)}"
-            lblWin.text  = "Jendela (interval): ${prefs.jitterWindowSec} detik"
+            lblWin.text = "Jendela (interval): ${prefs.jitterWindowSec} detik"
         }
 
         fun pushAll() {
@@ -56,14 +60,16 @@ class JitterController(
             pusher.pushAll()
         }
 
-        seekStep.progress = (prefs.jitterStep * 2).toInt()   // 0.5 langkah
-        seekWin.progress  = prefs.jitterWindowSec
-        syncLabels(); syncPresets()
+        seekStep.progress = (prefs.jitterStep * 2).toInt()   // 0.5 m per langkah seekbar
+        seekWin.progress = prefs.jitterWindowSec
+        syncLabels()
+        syncPresets()
 
         seekStep.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                 prefs.jitterStep = p / 2f
-                syncLabels(); syncPresets()
+                syncLabels()
+                syncPresets()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) { pushAll() }
@@ -71,35 +77,49 @@ class JitterController(
         seekWin.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                 prefs.jitterWindowSec = p
-                syncLabels(); syncPresets()
+                syncLabels()
+                syncPresets()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) { pushAll() }
         })
 
         pDiam.setOnClickListener {
-            prefs.jitterStep = 1f; prefs.jitterWindowSec = 10
-            seekStep.progress = 2; seekWin.progress = 10
-            syncLabels(); syncPresets(); pushAll()
+            prefs.jitterStep = 1f
+            prefs.jitterWindowSec = 10
+            seekStep.progress = 2
+            seekWin.progress = 10
+            syncLabels()
+            syncPresets()
+            pushAll()
             Toast.makeText(activity, "Preset Diam", Toast.LENGTH_SHORT).show()
         }
         pNormal.setOnClickListener {
-            prefs.jitterStep = 2.5f; prefs.jitterWindowSec = 6
-            seekStep.progress = 5; seekWin.progress = 6
-            syncLabels(); syncPresets(); pushAll()
+            prefs.jitterStep = 2.5f
+            prefs.jitterWindowSec = 6
+            seekStep.progress = 5
+            seekWin.progress = 6
+            syncLabels()
+            syncPresets()
+            pushAll()
             Toast.makeText(activity, "Preset Normal", Toast.LENGTH_SHORT).show()
         }
         pAktif.setOnClickListener {
-            prefs.jitterStep = 5f; prefs.jitterWindowSec = 3
-            seekStep.progress = 10; seekWin.progress = 3
-            syncLabels(); syncPresets(); pushAll()
+            prefs.jitterStep = 5f
+            prefs.jitterWindowSec = 3
+            seekStep.progress = 10
+            seekWin.progress = 3
+            syncLabels()
+            syncPresets()
+            pushAll()
             Toast.makeText(activity, "Preset Aktif", Toast.LENGTH_SHORT).show()
         }
 
         v.findViewById<View>(R.id.btn_jitter_close).setOnClickListener { pushAll() }
 
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setView(v).create()
+            .setView(v)
+            .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
         d.window?.setLayout(
             (activity.resources.displayMetrics.widthPixels * 0.92).toInt(),
