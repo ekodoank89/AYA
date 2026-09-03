@@ -14,7 +14,7 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
 
 /**
- * Tombol ★ (dalam panel) + dialog favorit:
+ * Tombol ★ (di panel) + dialog favorit:
  * 2 mode input (pin/manual, kolom vertikal), edit nama+koordinat, hapus berkonfirmasi.
  */
 class FavoritesController(
@@ -52,18 +52,18 @@ class FavoritesController(
             modePin.setBackgroundResource(
                 if (m == "pin") R.drawable.bg_mode_on else R.drawable.bg_mode_off)
             modePin.setTextColor(
-                if (m == "pin") 0xFFC8F7D8.toInt() else 0x99FFFFFF)
+                if (m == "pin") 0xFFC8F7D8.toInt() else 0x99FFFFFF.toInt())
             modeManual.setBackgroundResource(
                 if (m == "manual") R.drawable.bg_mode_on else R.drawable.bg_mode_off)
             modeManual.setTextColor(
-                if (m == "manual") 0xFFC8F7D8.toInt() else 0x99FFFFFF)
+                if (m == "manual") 0xFFC8F7D8.toInt() else 0x99FFFFFF.toInt())
             latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
             clearErr()
         }
         modePin.setOnClickListener { setMode("pin") }
         modeManual.setOnClickListener { setMode("manual") }
 
-        /** Validasi manual; koma→titik; null = invalid (err sudah ditampilkan). */
+        /** Validasi manual; koma→titik; null = invalid. */
         fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
             clearErr()
             val lat = la.text.toString().replace(',', '.').toDoubleOrNull()
@@ -100,7 +100,7 @@ class FavoritesController(
                 item.findViewById<TextView>(R.id.if_coord).text =
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(i) }
-                item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(i) { render() } }
+                item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(i) }
                 item.setOnClickListener {
                     onPick(LatLng(f.lat, f.lng), f.name)
                     dialog?.dismiss()
@@ -148,7 +148,7 @@ class FavoritesController(
         val lngEt  = v.findViewById<EditText>(R.id.e_lng)
         val errTv  = v.findViewById<TextView>(R.id.e_err)
         nameEt.setText(f.name)
-        latEt.setText(String.format(Locale.US, "%s", f.lat.toString()))
+        latEt.setText(f.lat.toString())
         lngEt.setText(f.lng.toString())
 
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
@@ -170,7 +170,8 @@ class FavoritesController(
                 return@setOnClickListener
             }
             if (store.updateAt(i, name, lat, lng)) {
-                d.dismiss(); render(); refreshDialogIfOpen()
+                d.dismiss()
+                refreshDialogIfOpen()   // render ulang dialog utama yang terbuka di bawah
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
                 errTv.text = "Nama sudah dipakai lokasi lain."; errTv.visibility = View.VISIBLE
@@ -180,21 +181,25 @@ class FavoritesController(
     }
 
     // ===== HAPUS: konfirmasi =====
-    private fun askDelete(i: Int, after: () -> Unit) {
+    private fun askDelete(i: Int) {
         val f = store.all().getOrNull(i) ?: return
         AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Hapus lokasi?")
             .setMessage("\"${f.name}\" akan dihapus permanen dari daftar favorit.")
             .setPositiveButton("Hapus") { _, _ ->
-                store.removeAt(i); after()
+                store.removeAt(i)
+                refreshDialogIfOpen()
                 Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Batal", null)
             .show()
     }
 
-    /** Render ulang dialog utama kalau sedang terbuka (misal habis edit). */
+    /** Render ulang dialog utama bila sedang terbuka — dengan menutup yang lama dulu. */
     private fun refreshDialogIfOpen() {
-        if (dialog?.isShowing == true) { show() }
+        if (dialog?.isShowing == true) {
+            dialog?.dismiss()
+            show()
+        }
     }
 }
