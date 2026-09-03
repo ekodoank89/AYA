@@ -1,8 +1,10 @@
 package com.aya.doank.ui
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -16,6 +18,7 @@ import java.util.Locale
 /**
  * Tombol ★ (di panel) + dialog favorit:
  * 2 mode input (pin/manual, kolom vertikal), edit nama+koordinat, hapus berkonfirmasi.
+ * v2.2.3: dialog dilebarkan ke 92% lebar layar (helper widen) — lat/lng terbaca jelas.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -27,6 +30,16 @@ class FavoritesController(
 
     fun bind(btnId: Int) {
         activity.findViewById<View>(btnId).setOnClickListener { show() }
+    }
+
+    /** AlertDialog default sempit — lebarkan ke 92% lebar layar. */
+    private fun widen(d: AlertDialog) {
+        d.setOnShowListener {
+            d.window?.setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.92).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+        }
     }
 
     private fun show() {
@@ -132,9 +145,10 @@ class FavoritesController(
             }
         }
 
-        dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        dialog = androidx.appcompat.app.AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v).create()
         dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        widen(dialog!!)
         dialog?.show()
         render()
     }
@@ -151,9 +165,10 @@ class FavoritesController(
         latEt.setText(f.lat.toString())
         lngEt.setText(f.lng.toString())
 
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        val d = androidx.appcompat.app.AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v).create()
         d.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        widen(d)
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -183,7 +198,7 @@ class FavoritesController(
     // ===== HAPUS: konfirmasi =====
     private fun askDelete(i: Int) {
         val f = store.all().getOrNull(i) ?: return
-        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        val d = androidx.appcompat.app.AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Hapus lokasi?")
             .setMessage("\"${f.name}\" akan dihapus permanen dari daftar favorit.")
             .setPositiveButton("Hapus") { _, _ ->
@@ -195,7 +210,7 @@ class FavoritesController(
             .show()
     }
 
-    /** Render ulang dialog utama bila sedang terbuka — dengan menutup yang lama dulu. */
+    /** Render ulang dialog utama bila sedang terbuka — tutup yang lama, buka baru. */
     private fun refreshDialogIfOpen() {
         if (dialog?.isShowing == true) {
             dialog?.dismiss()
