@@ -8,9 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 
 /**
- * Jembatan config manager → hook di proses target (pengganti XSharedPreferences).
- * Hanya melayani data spoof untuk id target yang dikenal — bukan pembaca prefs bebas.
- * exported=true disengaja: proses target HARUS bisa memanggil ini via Binder.
+ * Jembatan config manager → hook. v2.3: menyajikan juga setting jitter.
  */
 class ConfigProvider : ContentProvider() {
 
@@ -23,6 +21,8 @@ class ConfigProvider : ContentProvider() {
             putBoolean("active", sp.getBoolean(Keys.spoofActive(target.id), false))
             putString("lat", sp.getString(Keys.spoofLat(target.id), null))
             putString("lng", sp.getString(Keys.spoofLng(target.id), null))
+            putString("jit_step", sp.getString(Keys.JIT_STEP, null))
+            putString("jit_win", sp.getString(Keys.JIT_WINDOW, null))
         }
     }
 
