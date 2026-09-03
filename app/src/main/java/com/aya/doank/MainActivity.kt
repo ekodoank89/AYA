@@ -3,6 +3,7 @@ package com.aya.doank
 import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -46,9 +47,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // ===== RANTAI IZIN v2.4.2 (double cross-check) =====
-    // 1) Lokasi → 2) Selalu izinkan → 3) Notifikasi → 4) Baterai (sekali)
-    // Auto-start guide vendor: DIHAPUS dari rantai.
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
 
@@ -75,14 +74,14 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
-        // Alur izin lokasi selesai (apapun hasilnya) → evaluasi ulang rantai
         permissionFlow.onSettled = { nextChainStep() }
 
+        // v2.6.3: playPanel yang push (push dulu sebelum buka app target) —
+        // MainActivity tidak lagi meng-push ganda di sini.
         playPanel = PlayPanelController(
             this, prefs,
             centerProvider = { map.currentCenter() }
         ) { target, active ->
-            pusher.push(target)
             if (active) {
                 val p = prefs.spoofPoint(target.id)
                 if (p != null) notifs.show(target, p.first, p.second)
@@ -107,7 +106,7 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
-        // ==== JITTER — baris keempat panel ====
+        // ==== JITTER ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -126,44 +125,32 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        nextChainStep()
+        if (permissionFlow.hasPermission()) {
+            map.ensureBlueDot()
+        } else {
+            nextChainStep()
+        }
     }
 
-    /**
-     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
-     * 1) Lokasi dasar   — ulang hingga granted
-     * 2) Selalu izinkan — ulang hingga granted (kembali dari Settings dicek ulang)
-     * 3) Notifikasi     — ulang hingga granted
-     * 4) Baterai        — dialog sistem SEKALI (silent-once, tidak ditagih ulang)
-     */
     private fun nextChainStep() {
         when {
-            // 1) LOKASI DASAR
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
 
-            // 2) SELALU IZINKAN (background)
-            !permissionFlow.hasBackgroundLocation() -> {
+            !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
-                    permissionFlow.requestBackgroundLocation {
-                        // setelah kembali dari Settings → cek ulang (double check)
-                        nextChainStep()
-                    }
+                    permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
-            }
 
-            // 3) NOTIFIKASI
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
 
-            // 4) BATERAI — sekali, tidak ikut double-check
             !permissionFlow.isBatteryUnrestricted() -> {
-                // Guard sekali-per-sesi: jika user menolak, jangan tagih terus
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
-                    permissionFlow.requestBatteryExemption { /* selesai; tidak diulang */ }
+                    permissionFlow.tryBatteryExemptionSilent()
                 }
             }
         }
@@ -171,10 +158,6 @@ class MainActivity : AppCompatActivity() {
 
     private var batteryOnceThisSession = false
 
-    /**
-     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
-     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
-     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
             Toast.makeText(
@@ -193,11 +176,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
-        // → selesaikan tahap tertunda → rantai mengevaluasi ulang (double check)
         permissionFlow.resumePendingBackground { nextChainStep() }
 
-        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
@@ -216,14 +196,14 @@ class MainActivity : AppCompatActivity() {
     private fun stopFromNotif(targetId: String) {
         val t = Targets.byId(targetId)
         prefs.setSpoofActive(t.id, false)
-        pusher.push(t)
+        pusher.push(t)                      // push dari sini (jalur notifikasi)
         playPanel.refresh(t.id)
         notifs.hide(t)
         Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
-        val msg = if (active) "${target.label} AKTIF — lock ${map.centerText()} — notif di status bar"
+        val msg = if (active) "${target.label} AKTIF — lock ${map.centerText()} — membuka aplikasi…"
                   else "${target.label} dihentikan — notif hilang"
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
