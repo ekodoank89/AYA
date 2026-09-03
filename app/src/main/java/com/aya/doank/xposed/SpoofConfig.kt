@@ -13,16 +13,16 @@ import com.aya.doank.core.Keys
 import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedBridge
 import java.util.Random
-import kotlin.math.abs
 import kotlin.math.cos
 
 /**
  * Pembaca config SATU target. Rantai: push → remote → xsp.
- * v2.1: + Jitter GPS (random-walk) diterapkan saat penyajian koordinat.
+ * v2.3: jitter dinamis (step/window) — dibaca dari push/remote/xsp,
+ * pergerakan titik berubah TANPA restart app target.
  */
 class SpoofConfig(private val targetId: String) {
 
-    // ==== State config (tidak berubah dari v2.0.1) ====
+    // ==== State config ====
     private var lastReload = 0L
     private var active = false
     private var baseLat = Double.NaN
@@ -31,6 +31,12 @@ class SpoofConfig(private val targetId: String) {
     private var transport = TRANSPORT_NONE
     private var loggedRemoteFail = false
 
+    // ==== v2.3: jitter dinamis (nilai di-update dari push/remote/xsp) ====
+    private var jStep = 2.5f
+    private var jWin = 6
+    private var lastLoggedJitter: String? = null
+    private val jitter = Jitter()
+
     private var pushActive: Boolean? = null
     private var pushLat = Double.NaN
     private var pushLng = Double.NaN
@@ -38,28 +44,23 @@ class SpoofConfig(private val targetId: String) {
 
     private val xsp by lazy { XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME) }
 
-    // ==== Jitter (v2.1) ====
-    private val jitter = Jitter()
-
     init {
         refresh(now = System.currentTimeMillis(), force = true)
-        XposedBridge.log("AYA [$targetId]: modul config dimuat (transport awal: $transport)")
+        XposedBridge.log(
+            "AYA [$targetId]: modul config dimuat (transport awal: $transport, " +
+            "jitter: $jStep m / $jWin dtk)"
+        )
     }
 
-    fun latitude(): Double? { refresh(System.currentTimeMillis()); return jitteredLat() }
-    fun longitude(): Double? { refresh(System.currentTimeMillis()); return jitteredLng() }
+    fun latitude(): Double? = jittered()?.first
+    fun longitude(): Double? = jittered()?.second
 
-    /** Koordinat dasar (pin) + offset jitter yang konsisten dalam satu jendela 6 dtk. */
-    private fun jitteredLat(): Double? {
-        val b = value(baseLat) ?: return null
-        return jitter.applyTo(b, baseLng).first
+    /** Koordinat pin + offset jitter (satu jendela = satu posisi konsisten). */
+    private fun jittered(): Pair<Double, Double>? {
+        refresh(System.currentTimeMillis())
+        if (!active || baseLat.isNaN() || baseLng.isNaN()) return null
+        return jitter.applyTo(baseLat, baseLng)
     }
-    private fun jitteredLng(): Double? {
-        val b = value(baseLng) ?: return null
-        return jitter.applyTo(baseLat, b).second
-    }
-
-    private fun value(v: Double): Double? = if (active && !v.isNaN()) v else null
 
     private fun refresh(now: Long, force: Boolean = false) {
         if (!force && now - lastReload < RELOAD_INTERVAL_MS) return
@@ -77,13 +78,24 @@ class SpoofConfig(private val targetId: String) {
 
     private fun applyState(a: Boolean, la: Double, ln: Double, via: String) {
         val changed = (a != active) || (la != baseLat) || (ln != baseLng)
-        active = a; baseLat = la; baseLng = ln
+        active = a
+        baseLat = la
+        baseLng = ln
         setTransport(via)
-        if (changed) jitter.onBaseChanged(la, ln)   // base pindah → reset walk
+        if (changed) jitter.onBaseChanged(la)   // pin pindah → walk mulai dari 0
         if (active != lastLoggedActive) {
             lastLoggedActive = active
             if (active) XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $la, $ln")
             else XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
+        }
+        logJitterIfChanged()
+    }
+
+    private fun logJitterIfChanged() {
+        val key = "$jStep/$jWin"
+        if (key != lastLoggedJitter) {
+            lastLoggedJitter = key
+            XposedBridge.log("AYA [$targetId]: jitter → $jStep m / $jWin dtk")
         }
     }
 
@@ -94,6 +106,10 @@ class SpoofConfig(private val targetId: String) {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, i: Intent?) {
                     if (i?.getStringExtra(ConfigPusher.EXTRA_TARGET_ID) != targetId) return
+                    // v2.3: jitter ikut dalam push (bisa datang tanpa perubahan lock)
+                    i.getStringExtra("jit_step")?.toFloatOrNull()?.let { jStep = it }
+                    i.getStringExtra("jit_win")?.toIntOrNull()?.let { jWin = it }
+                    logJitterIfChanged()
                     val a = i.getBooleanExtra("active", false)
                     val la = i.getStringExtra("lat")?.toDoubleOrNull() ?: Double.NaN
                     val ln = i.getStringExtra("lng")?.toDoubleOrNull() ?: Double.NaN
@@ -128,6 +144,9 @@ class SpoofConfig(private val targetId: String) {
                 Uri.parse("content://${ConfigProvider.AUTHORITY}"),
                 ConfigProvider.METHOD_SPOOF, targetId, null
             ) ?: return false
+            b.getString("jit_step")?.toFloatOrNull()?.let { jStep = it }
+            b.getString("jit_win")?.toIntOrNull()?.let { jWin = it }
+            logJitterIfChanged()
             applyState(
                 b.getBoolean("active", false),
                 b.getString("lat")?.toDoubleOrNull() ?: Double.NaN,
@@ -147,6 +166,9 @@ class SpoofConfig(private val targetId: String) {
     private fun readXsp(): Boolean {
         return try {
             xsp.reload()
+            xsp.getString(Keys.JIT_STEP, null)?.toFloatOrNull()?.let { jStep = it }
+            xsp.getString(Keys.JIT_WINDOW, null)?.toIntOrNull()?.let { jWin = it }
+            logJitterIfChanged()
             applyState(
                 xsp.getBoolean(Keys.spoofActive(targetId), false),
                 xsp.getString(Keys.spoofLat(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
@@ -168,45 +190,38 @@ class SpoofConfig(private val targetId: String) {
     }
 
     /**
-     * Random-walk GPS: offset bergerak bertahap dalam radius RADIUS_METERS,
-     * arah/kecepatan baru tiap WINDOW_MS. Satu jendela = satu posisi konsisten
-     * untuk SEMUA pembacaan (getter maupun rewrite field) — tidak ada koordinat
-     * yang "berpindah" di tengah satu objek Location.
+     * Random-walk GPS: offset bergerak bertahap dalam radius 5 m,
+     * langkah/interval dari config dinamis (jStep/jWin — inner class, akses langsung).
+     * Satu jendela = satu posisi konsisten untuk SEMUA pembacaan.
      */
-    private class Jitter {
+    private inner class Jitter {
         private val rnd = Random()
+        private val maxOffMeters = 5.0      // radius klem — identitas fitur, tidak diekspos
         private var oLat = 0.0
         private var oLng = 0.0
         private var windowStart = 0L
-        private var baseLat = Double.NaN
+        private var baseRef = Double.NaN
 
-        fun onBaseChanged(la: Double, ln: Double) {
-            if (la != baseLat) {           // pin dipindah → mulai walk baru dari 0
-                oLat = 0.0; oLng = 0.0
-                baseLat = la
+        fun onBaseChanged(la: Double) {
+            if (la != baseRef) {
+                oLat = 0.0
+                oLng = 0.0
+                baseRef = la
             }
         }
 
-        /** Mengembalikan (lat, lng) dengan offset jendela berjalan. */
         fun applyTo(baseLat: Double, baseLng: Double): Pair<Double, Double> {
             val now = System.currentTimeMillis()
-            if (now - windowStart >= WINDOW_MS) {
+            if (now - windowStart >= jWin * 1000L) {
                 windowStart = now
-                val mPerDegLat = 111_320.0
-                val mPerDegLng = 111_320.0 * cos(Math.toRadians(baseLat))
-                // langkah acak kecil, diklem agar total offset tak lari dari radius
-                val dLat = (rnd.nextDouble() - 0.5) * STEP_METERS / mPerDegLat
-                val dLng = (rnd.nextDouble() - 0.5) * STEP_METERS / mPerDegLng
-                oLat = (oLat + dLat).coerceIn(-MAX_OFF_METERS / mPerDegLat, MAX_OFF_METERS / mPerDegLat)
-                oLng = (oLng + dLng).coerceIn(-MAX_OFF_METERS / mPerDegLng, MAX_OFF_METERS / mPerDegLng)
+                val mLat = 111320.0
+                val mLng = 111320.0 * cos(Math.toRadians(baseLat))
+                oLat += ((rnd.nextDouble() - 0.5) * jStep) / mLat
+                oLng += ((rnd.nextDouble() - 0.5) * jStep) / mLng
+                oLat = oLat.coerceIn(-maxOffMeters / mLat, maxOffMeters / mLat)
+                oLng = oLng.coerceIn(-maxOffMeters / mLng, maxOffMeters / mLng)
             }
             return (baseLat + oLat) to (baseLng + oLng)
-        }
-
-        companion object {
-            private const val WINDOW_MS = 6_000L
-            private const val STEP_METERS = 2.5
-            private const val MAX_OFF_METERS = 5.0
         }
     }
 
