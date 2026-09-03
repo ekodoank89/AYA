@@ -3,14 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="20dp"
+    android:background="@drawable/bg_dialog_card">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Edit Lokasi"
         android:textColor="@color/label_text"
-        android:textSize="15sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         android:layout_marginBottom="14dp" />
 
@@ -29,11 +30,11 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_coord_chip"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp"
+        android:paddingVertical="11dp"
         android:maxLength="40"
         android:inputType="text"
         android:textColor="@color/label_text"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -51,11 +52,11 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_coord_chip"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp"
+        android:paddingVertical="11dp"
         android:inputType="numberDecimal|numberSigned"
         android:fontFamily="monospace"
         android:textColor="@color/label_text"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -73,11 +74,11 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_coord_chip"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp"
+        android:paddingVertical="11dp"
         android:inputType="numberDecimal|numberSigned"
         android:fontFamily="monospace"
         android:textColor="@color/label_text"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/e_err"
@@ -85,22 +86,24 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:textColor="#FF8A80"
-        android:textSize="10sp"
+        android:textSize="11sp"
         android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="14dp">
+        android:layout_marginTop="16dp">
 
         <Button
             android:id="@+id/e_cancel"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="50dp"
             android:layout_weight="1"
             android:background="@drawable/bg_coord_chip"
             android:textColor="@color/label_text"
+            android:textSize="14sp"
+            android:textStyle="bold"
             android:text="Batal" />
 
         <Space android:layout_width="10dp" android:layout_height="1dp" />
@@ -108,11 +111,12 @@
         <Button
             android:id="@+id/e_save"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_height="50dp"
+            android:layout_weight="1.3"
             android:background="@drawable/bg_play_green_touch"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:text="Simpan" />
+            android:textSize="14sp"
+            android:text="SIMPAN" />
     </LinearLayout>
 </LinearLayout>
