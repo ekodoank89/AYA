@@ -3,6 +3,7 @@ package com.aya.doank.ui
 import android.app.Activity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -11,7 +12,10 @@ import com.aya.doank.R
 import com.aya.doank.core.ConfigPusher
 import com.aya.doank.core.Prefs
 
-/** Dialog pengaturan jitter: preset + 2 slider, tersimpan & langsung di-push. */
+/**
+ * Dialog pengaturan jitter: preset + 2 slider, tersimpan & langsung di-push.
+ * v2.3.1: dialog dilebarkan 92% (helper widen) — konsisten dengan dialog lain.
+ */
 class JitterController(
     private val activity: Activity,
     private val prefs: Prefs,
@@ -19,6 +23,16 @@ class JitterController(
 ) {
     fun bind(btnId: Int) {
         activity.findViewById<View>(btnId).setOnClickListener { show() }
+    }
+
+    /** Dialog default sempit — lebarkan ke 92% lebar layar. */
+    private fun widen(d: AlertDialog) {
+        d.setOnShowListener {
+            d.window?.setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.92).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+        }
     }
 
     private fun show() {
@@ -121,10 +135,7 @@ class JitterController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        d.window?.setLayout(
-            (activity.resources.displayMetrics.widthPixels * 0.92).toInt(),
-            android.view.WindowManager.LayoutParams.WRAP_CONTENT
-        )
+        widen(d)
         d.show()
     }
 }
