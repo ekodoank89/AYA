@@ -3,7 +3,6 @@ package com.aya.doank
 import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -25,7 +24,6 @@ import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
-import com.aya.doank.ui.VendorAutostartGuide
 import com.google.android.gms.maps.SupportMapFragment
 
 class MainActivity : AppCompatActivity() {
@@ -48,10 +46,9 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
-    // Urutan: Lokasi → Selalu izinkan → Notifikasi → Baterai → Auto-start guide.
-    // Setiap tahap diverifikasi dari STATUS IZIN AKTUAL. Belum granted setelah
-    // permintaan → tahap yang sama DIULANG (jeda 0,7 dtk + toast) hingga granted.
+    // ===== RANTAI IZIN v2.4.2 (double cross-check) =====
+    // 1) Lokasi → 2) Selalu izinkan → 3) Notifikasi → 4) Baterai (sekali)
+    // Auto-start guide vendor: DIHAPUS dari rantai.
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
 
@@ -110,7 +107,7 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
-        // ==== v2.3: JITTER — baris keempat panel ====
+        // ==== JITTER — baris keempat panel ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -129,15 +126,15 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        // Mulai rantai (juga menangani app yang di-clear data)
         nextChainStep()
     }
 
     /**
-     * Mesin status rantai + DOUBLE CROSS-CHECK.
-     * Urutan: Lokasi → Selalu izinkan → Notifikasi → Baterai → Auto-start guide.
-     * Setiap callback tahap memanggil nextChainStep() lagi — jika tahap itu
-     * masih belum granted, beginStage() mengulanginya (toast + jeda) hingga OK.
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (kembali dari Settings dicek ulang)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI (silent-once, tidak ditagih ulang)
      */
     private fun nextChainStep() {
         when {
@@ -145,36 +142,38 @@ class MainActivity : AppCompatActivity() {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
 
-            // 2) SELALU IZINKAN (background) — WAJIB OK sebelum lanjut ke notifikasi
-            !permissionFlow.hasBackgroundLocation() ->
+            // 2) SELALU IZINKAN (background)
+            !permissionFlow.hasBackgroundLocation() -> {
                 beginStage("Selalu izinkan") {
-                    permissionFlow.requestBackgroundLocation { nextChainStep() }
+                    permissionFlow.requestBackgroundLocation {
+                        // setelah kembali dari Settings → cek ulang (double check)
+                        nextChainStep()
+                    }
                 }
+            }
 
-            // 3) NOTIFIKASI — WAJIB OK sebelum lanjut ke baterai
+            // 3) NOTIFIKASI
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
 
-            // 4) BATERAI — WAJIB OK sebelum selesai
-            !permissionFlow.isBatteryUnrestricted() ->
-                beginStage("Baterai") {
-                    permissionFlow.requestBatteryExemption { nextChainStep() }
+            // 4) BATERAI — sekali, tidak ikut double-check
+            !permissionFlow.isBatteryUnrestricted() -> {
+                // Guard sekali-per-sesi: jika user menolak, jangan tagih terus
+                if (!batteryOnceThisSession) {
+                    batteryOnceThisSession = true
+                    permissionFlow.requestBatteryExemption { /* selesai; tidak diulang */ }
                 }
-
-            // 5) AUTO-START GUIDE (sekali; setting vendor — tak bisa diverifikasi API)
-            prefs.jitterAskAutostart && VendorAutostartGuide.isKnownVendor() -> {
-                prefs.jitterAskAutostart = false
-                VendorAutostartGuide.show(this)
             }
         }
     }
 
+    private var batteryOnceThisSession = false
+
     /**
      * Double cross-check: tahap yang SAMA diminta ulang = belum granted
-     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi
-     * (agar dialog lama sempat tertutup rapi dan user membaca statusnya).
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
      */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
