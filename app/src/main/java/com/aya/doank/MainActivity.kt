@@ -20,6 +20,7 @@ import com.aya.doank.core.Targets
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.MapController
 import com.aya.doank.ui.NotifController
+import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
 import com.google.android.gms.maps.SupportMapFragment
@@ -33,11 +34,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pusher: ConfigPusher
     private lateinit var notifs: NotifController
     private lateinit var favorites: FavoritesController
+    private lateinit var notifPerm: NotifPermissionFlow
 
     // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* deny/allow dinilai ulang saat ▶ ditekan via canNotify() */ }
+    ) {
+        // Setelah dialog ditutup (apapun hasilnya), tandai "pernah diminta"
+        notifPerm.markAsked()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         map = MapController(this, prefs)
         pusher = ConfigPusher(this)
         notifs = NotifController(this)
+        notifPerm = NotifPermissionFlow(this, notifPermLauncher)
         favorites = FavoritesController(
             this,
             FavoritesStore(this),
@@ -69,11 +75,10 @@ class MainActivity : AppCompatActivity() {
             if (active) {
                 val p = prefs.spoofPoint(target.id)
                 if (p != null) notifs.show(target, p.first, p.second)
-                if (!notifs.canNotify()) {
-                    Toast.makeText(this,
-                        "⚠️ Izin notifikasi ditolak — tombol STOP tidak tersedia di status bar!",
-                        Toast.LENGTH_LONG).show()
-                }
+
+                // ==== GUARD IZIN NOTIFIKASI (v2.2.3) ====
+                // Kalau izin belum ada, pastikan user SADAR dulu — tapi tetap izinkan play.
+                notifPerm.ensureBeforePlay { }
             } else {
                 notifs.hide(target)
             }
@@ -113,7 +118,8 @@ class MainActivity : AppCompatActivity() {
             permissionFlow.requestOrGuide()
         }
 
-        requestNotifPermissionIfNeeded()
+        // ==== v2.2.3: minta izin notifikasi saat pertama kali buka ====
+        notifPerm.requestAtStartup()
     }
 
     override fun onResume() {
@@ -141,14 +147,6 @@ class MainActivity : AppCompatActivity() {
         playPanel.refresh(t.id)
         notifs.hide(t)
         Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun requestNotifPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
