@@ -2,4 +2,5 @@
     <string name="app_name">AYA</string>
     <string name="target_grab">GRAB</string>
     <string name="target_gojek">GOJEK</string>
+    <string name="favorite_label">FAVORIT</string>
 </resources>
