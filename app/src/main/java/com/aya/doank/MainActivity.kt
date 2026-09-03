@@ -4,8 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.Toast
@@ -24,6 +26,7 @@ import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
+import com.aya.doank.ui.VendorAutostartGuide
 import com.google.android.gms.maps.SupportMapFragment
 
 class MainActivity : AppCompatActivity() {
@@ -38,14 +41,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
 
-    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
         notifPerm.markAsked()
+        notifPermNext()   // lanjutkan rantai setelah notifikasi dijawab
     }
 
-    // Urutan izin: LOKASI dulu → barulah NOTIFIKASI (permintaan v2.2.3)
+    // Urutan izin: LOKASI → BACKGROUND → BATTERY → NOTIFIKASI
     private var awaitingLocationSettle = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +74,25 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
-        // Sinyal "alur izin lokasi selesai" → baru minta izin notifikasi
+        // 1) Lokasi selesai → 2) Background location
         permissionFlow.onSettled = {
             if (awaitingLocationSettle) {
                 awaitingLocationSettle = false
-                notifPerm.requestAfterLocation()
+                if (permissionFlow.hasPermission()) {
+                    permissionFlow.requestBackgroundLocation()
+                } else {
+                    // Lokasi ditolak → lompat ke battery (tetap jalan)
+                    permissionFlow.requestBatteryExemption()
+                }
             }
+        }
+        // 2) Background selesai → 3) Battery
+        permissionFlow.onBackgroundSettled = {
+            permissionFlow.requestBatteryExemption()
+        }
+        // 3) Battery selesai → 4) Notifikasi
+        permissionFlow.onBatterySettled = {
+            notifPerm.requestAfterLocation()   // nama fungsi tetap — jalannya setelah battery
         }
 
         playPanel = PlayPanelController(
@@ -96,7 +112,6 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
-        // Tombol ■ di notifikasi → broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
             runOnUiThread { stopFromNotif(targetId) }
         }
@@ -107,8 +122,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         favorites.bind(R.id.btn_fav)
-
-        // ==== v2.3: JITTER — di bawah FAVORIT, satu kontainer panel ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -127,14 +140,32 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        // ==== URUTAN IZIN: lokasi dulu → notifikasi menyusul (onSettled) ====
         if (permissionFlow.hasPermission()) {
             map.ensureBlueDot()
-            // Lokasi sudah granted (update app / buka ulang) → alur instan selesai
-            permissionFlow.onSettled?.invoke()
+            startChainFromBackground()   // lokasi sudah granted → mulai dari tahap 2
         } else {
             awaitingLocationSettle = true
             permissionFlow.requestOrGuide()
+        }
+    }
+
+    private fun startChainFromBackground() {
+        if (permissionFlow.hasBackgroundLocation()) {
+            if (permissionFlow.isBatteryUnrestricted()) {
+                notifPerm.requestAfterLocation()
+            } else {
+                permissionFlow.requestBatteryExemption()
+            }
+        } else {
+            permissionFlow.requestBackgroundLocation()
+        }
+    }
+
+    private fun notifPermNext() {
+        // Setelah notifikasi: panduan auto-start (sekali, hanya jika vendor dikenal & belum pernah)
+        if (prefs.jitterAskAutostart) {
+            prefs.jitterAskAutostart = false
+            VendorAutostartGuide.show(this)
         }
     }
 
@@ -142,14 +173,12 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Jalur "Buka Pengaturan" (lokasi diblokir): user kembali dari Settings.
-        // Lokasi kini granted → alur lokasi selesai → notifikasi menyusul.
+        // Jalur "Buka Pengaturan" — user kembali: sinkronkan rantai
         if (awaitingLocationSettle && permissionFlow.hasPermission()) {
             awaitingLocationSettle = false
-            notifPerm.requestAfterLocation()
+            startChainFromBackground()
         }
 
-        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
