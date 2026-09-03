@@ -11,8 +11,8 @@ android {
         applicationId = "com.aya.doank"
         minSdk = 30
         targetSdk = 36
-        versionCode = 27
-        versionName = "2.6"
+        versionCode = 28
+        versionName = "2.6.2"
         manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
@@ -29,14 +29,6 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
-        }
-    }
-
-    // Nama file output otomatis mengikuti versi
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "AYA.Modul-${versionName}-${versionCode}.apk"
         }
     }
 
