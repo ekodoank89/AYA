@@ -4,10 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.Toast
@@ -45,11 +43,11 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) {
         notifPerm.markAsked()
-        notifPermNext()   // lanjutkan rantai setelah notifikasi dijawab
+        notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // Urutan izin: LOKASI → BACKGROUND → BATTERY → NOTIFIKASI
-    private var awaitingLocationSettle = false
+    // ===== RANTAI IZIN: Lokasi → Notifikasi → Baterai → (Auto-start guide) =====
+    private var chainRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,26 +72,9 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
-        // 1) Lokasi selesai → 2) Background location
-        permissionFlow.onSettled = {
-            if (awaitingLocationSettle) {
-                awaitingLocationSettle = false
-                if (permissionFlow.hasPermission()) {
-                    permissionFlow.requestBackgroundLocation()
-                } else {
-                    // Lokasi ditolak → lompat ke battery (tetap jalan)
-                    permissionFlow.requestBatteryExemption()
-                }
-            }
-        }
-        // 2) Background selesai → 3) Battery
-        permissionFlow.onBackgroundSettled = {
-            permissionFlow.requestBatteryExemption()
-        }
-        // 3) Battery selesai → 4) Notifikasi
-        permissionFlow.onBatterySettled = {
-            notifPerm.requestAfterLocation()   // nama fungsi tetap — jalannya setelah battery
-        }
+        // onSettled lokasi → langkah rantai BERIKUTNYA (bukan langsung notifikasi;
+        // nextChainStep() yang menentukan urutan)
+        permissionFlow.onSettled = { nextChainStep() }
 
         playPanel = PlayPanelController(
             this, prefs,
@@ -142,30 +123,36 @@ class MainActivity : AppCompatActivity() {
 
         if (permissionFlow.hasPermission()) {
             map.ensureBlueDot()
-            startChainFromBackground()   // lokasi sudah granted → mulai dari tahap 2
         } else {
-            awaitingLocationSettle = true
-            permissionFlow.requestOrGuide()
+            nextChainStep()
         }
     }
 
-    private fun startChainFromBackground() {
-        if (permissionFlow.hasBackgroundLocation()) {
-            if (permissionFlow.isBatteryUnrestricted()) {
-                notifPerm.requestAfterLocation()
-            } else {
-                permissionFlow.requestBatteryExemption()
+    /**
+     * Mesin status rantai — URUTAN: Lokasi → Notifikasi → Baterai → Auto-start.
+     * Setiap tahap selesai memanggil nextChainStep() lagi; semua cek berbasis
+     * status izin AKTUAL (bukan flag) — guard lama tidak menghalangi.
+     */
+    private fun nextChainStep() {
+        when {
+            // 1) LOKASI
+            !permissionFlow.hasPermission() -> {
+                permissionFlow.requestOrGuide()   // onSettled → nextChainStep lagi
             }
-        } else {
-            permissionFlow.requestBackgroundLocation()
-        }
-    }
-
-    private fun notifPermNext() {
-        // Setelah notifikasi: panduan auto-start (sekali, hanya jika vendor dikenal & belum pernah)
-        if (prefs.jitterAskAutostart) {
-            prefs.jitterAskAutostart = false
-            VendorAutostartGuide.show(this)
+            // 2) NOTIFIKASI (sebelum baterai — urutan sesuai permintaan)
+            !notifPerm.isGranted() || !prefs.getBoolean("notif_chain_done", false) -> {
+                prefs.edit().putBoolean("notif_chain_done", true).apply()
+                notifPerm.requestInChain { nextChainStep() }
+            }
+            // 3) BATERAI
+            !permissionFlow.isBatteryUnrestricted() -> {
+                permissionFlow.requestBatteryExemption { nextChainStep() }
+            }
+            // 4) AUTO-START GUIDE (sekali; vendor dikenal saja)
+            prefs.jitterAskAutostart && VendorAutostartGuide.isKnownVendor() -> {
+                prefs.jitterAskAutostart = false
+                VendorAutostartGuide.show(this)
+            }
         }
     }
 
@@ -173,12 +160,10 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Jalur "Buka Pengaturan" — user kembali: sinkronkan rantai
-        if (awaitingLocationSettle && permissionFlow.hasPermission()) {
-            awaitingLocationSettle = false
-            startChainFromBackground()
-        }
+        // Kembali dari Settings (jalur lokasi/background diblokir) → lanjutkan rantai
+        permissionFlow.resumePendingBackground { nextChainStep() }
 
+        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
