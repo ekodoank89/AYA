@@ -15,8 +15,8 @@ import androidx.core.content.ContextCompat
 import com.aya.doank.R
 
 /**
- * Izin notifikasi (Android 13+). v2.4: fungsi requestInChain untuk rantai —
- * keputusan berdasarkan STATUS IZIN AKTUAL, bukan flag "pernah ditanya".
+ * Izin notifikasi (Android 13+). v2.4.1: semua dialog diberi background
+ * kartu solid (bg_dialog_card) — tidak transparan.
  */
 class NotifPermissionFlow(
     private val activity: Activity,
@@ -40,7 +40,7 @@ class NotifPermissionFlow(
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             // onDone dipanggil dari launcher callback (notifPermLauncher di MainActivity)
         } else {
-            AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
                 .setTitle("Izin notifikasi diblokir")
                 .setMessage(
                     "Tombol STOP di status bar tidak akan muncul tanpa izin notifikasi.\n\n" +
@@ -56,7 +56,9 @@ class NotifPermissionFlow(
                 }
                 .setNegativeButton("Lewati") { _, _ -> onDone() }
                 .setOnCancelListener { onDone() }
-                .show()
+                .create()
+            d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+            d.show()
         }
     }
 
@@ -84,7 +86,7 @@ class NotifPermissionFlow(
     }
 
     private fun showBlockedDialog(onContinue: () -> Unit) {
-        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Izin notifikasi diblokir")
             .setMessage(
                 "Tombol STOP di status bar tidak akan muncul tanpa izin notifikasi.\n\n" +
@@ -100,7 +102,9 @@ class NotifPermissionFlow(
             }
             .setNegativeButton("Lanjut tanpa notifikasi") { _, _ -> onContinue() }
             .setOnCancelListener { onContinue() }
-            .show()
+            .create()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        d.show()
     }
 
     private fun prefsAskedOnce(): Boolean =
