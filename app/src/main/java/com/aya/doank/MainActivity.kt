@@ -18,6 +18,7 @@ import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
 import com.aya.doank.ui.FavoritesController
+import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
 import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.NotifPermissionFlow
@@ -35,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifs: NotifController
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
+    private lateinit var jitter: JitterController
 
     // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
@@ -43,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.markAsked()
     }
 
-    // Urutan izin: LOKASI dulu → barulah NOTIFIKASI (permintaan user v2.2.3)
+    // Urutan izin: LOKASI dulu → barulah NOTIFIKASI (permintaan v2.2.3)
     private var awaitingLocationSettle = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,6 +108,10 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
+        // ==== v2.3: JITTER — di bawah FAVORIT, satu kontainer panel ====
+        jitter = JitterController(this, prefs, pusher)
+        jitter.bind(R.id.btn_jitter)
+
         findViewById<Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
         findViewById<Button>(R.id.btn_zoom_out).setOnClickListener { map.zoomOut() }
         findViewById<ImageButton>(R.id.btn_my_location).setOnClickListener {
@@ -137,7 +143,7 @@ class MainActivity : AppCompatActivity() {
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
         // Jalur "Buka Pengaturan" (lokasi diblokir): user kembali dari Settings.
-        // Kalau lokasi kini granted → alur lokasi dianggap selesai → notifikasi menyusul.
+        // Lokasi kini granted → alur lokasi selesai → notifikasi menyusul.
         if (awaitingLocationSettle && permissionFlow.hasPermission()) {
             awaitingLocationSettle = false
             notifPerm.requestAfterLocation()
