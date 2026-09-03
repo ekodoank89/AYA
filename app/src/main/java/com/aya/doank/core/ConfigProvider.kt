@@ -7,9 +7,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 
-/**
- * Jembatan config manager → hook. v2.3: menyajikan juga setting jitter.
- */
+/** v2.6: menyajikan config + 3 parameter jitter per target. */
 class ConfigProvider : ContentProvider() {
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
@@ -21,8 +19,9 @@ class ConfigProvider : ContentProvider() {
             putBoolean("active", sp.getBoolean(Keys.spoofActive(target.id), false))
             putString("lat", sp.getString(Keys.spoofLat(target.id), null))
             putString("lng", sp.getString(Keys.spoofLng(target.id), null))
-            putString("jit_step", sp.getString(Keys.JIT_STEP, null))
-            putString("jit_win", sp.getString(Keys.JIT_WINDOW, null))
+            putString("jit_step", sp.getString(Keys.jitStepKey(target.id), null))
+            putString("jit_win", sp.getString(Keys.jitWinKey(target.id), null))
+            putString("jit_radius", sp.getString(Keys.jitRadiusKey(target.id), null))
         }
     }
 
