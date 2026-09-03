@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -193,7 +194,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Kembali dari Settings (jalur "Selalu izinkan" / lokasi diblokir)
+        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
         // → selesaikan tahap tertunda → rantai mengevaluasi ulang (double check)
         permissionFlow.resumePendingBackground { nextChainStep() }
 
