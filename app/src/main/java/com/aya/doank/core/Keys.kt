@@ -9,6 +9,7 @@ object Keys {
         // Jitter (pergerakan titik) — bisa diubah live via push
     const val JIT_STEP = "jit_step"
     const val JIT_WINDOW = "jit_window"
+    const val ASK_AUTOSTART = "ask_autostart"
     
     // ==== Schema spoof — DIBACA HOOK di proses target. Jangan diubah sembarangan! ====
     private const val KEY_ACTIVE_TEMPLATE = "spoof_%s_active"
