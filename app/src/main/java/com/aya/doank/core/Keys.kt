@@ -10,9 +10,14 @@ object Keys {
     const val NOTIF_CHAIN_DONE = "notif_chain_done"
     const val ASK_AUTOSTART = "ask_autostart"
 
-    // ==== Jitter (pergerakan titik) — bisa diubah live via push ====
-    const val JIT_STEP = "jit_step"
-    const val JIT_WINDOW = "jit_window"
+    // ==== Jitter v2.6: PER TARGET — 3 parameter (step, window, radius) ====
+    private const val K_STEP = "jit_%s_step"
+    private const val K_WIN = "jit_%s_win"
+    private const val K_RADIUS = "jit_%s_radius"
+
+    fun jitStepKey(id: String) = K_STEP.format(id)
+    fun jitWinKey(id: String) = K_WIN.format(id)
+    fun jitRadiusKey(id: String) = K_RADIUS.format(id)
 
     // ==== Favorit ====
     const val FAVORITES = "favorites_json"
