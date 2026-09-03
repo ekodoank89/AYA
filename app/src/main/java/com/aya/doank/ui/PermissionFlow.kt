@@ -16,8 +16,9 @@ import com.aya.doank.R
 import com.aya.doank.core.Prefs
 
 /**
- * Izin lokasi dasar + background + battery. v2.4.1: semua dialog diberi
- * background kartu solid (bg_dialog_card) — tidak lagi transparan.
+ * Izin lokasi dasar + background + battery.
+ * v2.4.1: semua dialog diberi background kartu solid (bg_dialog_card) —
+ * pola: Builder rantai penuh → .create() → set window background → .show().
  */
 class PermissionFlow(
     private val activity: AppCompatActivity,
@@ -46,13 +47,6 @@ class PermissionFlow(
         onSettled?.invoke()
     }
 
-    // ====== Kartu solid untuk semua dialog builder (anti-transparan) ======
-    private fun buildCardDialog(): AlertDialog {
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog).create()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        return d
-    }
-
     // ====== 1) LOKASI DASAR ======
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -78,18 +72,20 @@ class PermissionFlow(
     }
 
     private fun showBlockedDialog() {
-        val d = buildCardDialog()
-        d.setTitle("Izin lokasi diblokir")
-        d.setMessage("Izin lokasi telah ditolak berulang kali. Untuk fitur titik biru, nyalakan izin Lokasi di Pengaturan aplikasi.")
-        d.setPositiveButton("Buka Pengaturan") { _, _ ->
-            activity.startActivity(
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", activity.packageName, null)
-                }
-            )
-        }
-        d.setNegativeButton("Batal") { _, _ -> onSettled?.invoke() }
-        d.setOnCancelListener { onSettled?.invoke() }
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Izin lokasi diblokir")
+            .setMessage("Izin lokasi telah ditolak berulang kali. Untuk fitur titik biru, nyalakan izin Lokasi di Pengaturan aplikasi.")
+            .setPositiveButton("Buka Pengaturan") { _, _ ->
+                activity.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", activity.packageName, null)
+                    }
+                )
+            }
+            .setNegativeButton("Batal") { _, _ -> onSettled?.invoke() }
+            .setOnCancelListener { onSettled?.invoke() }
+            .create()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
         d.show()
     }
 
@@ -112,24 +108,26 @@ class PermissionFlow(
         if (blocked) {
             showBackgroundBlockedDialog(onDone)
         } else {
-            val d = buildCardDialog()
-            d.setTitle("Izinkan lokasi di latar belakang?")
-            d.setMessage(
-                "AYA perlu lokasi 'Selalu izinkan' agar titik biru dan status tetap akurat " +
-                "walaupun aplikasi sedang tidak dibuka.\n\n" +
-                "Di layar berikutnya pilih 'Selalu izinkan' (Allow all the time)."
-            )
-            d.setPositiveButton("Buka Pengaturan") { _, _ ->
-                prefs.askedBackground = true
-                activity.startActivity(
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", activity.packageName, null)
-                    }
+            val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+                .setTitle("Izinkan lokasi di latar belakang?")
+                .setMessage(
+                    "AYA perlu lokasi 'Selalu izinkan' agar titik biru dan status tetap akurat " +
+                    "walaupun aplikasi sedang tidak dibuka.\n\n" +
+                    "Di layar berikutnya pilih 'Selalu izinkan' (Allow all the time)."
                 )
-                pendingBackgroundDone = onDone
-            }
-            d.setNegativeButton("Nanti saja") { _, _ -> onDone() }
-            d.setOnCancelListener { onDone() }
+                .setPositiveButton("Buka Pengaturan") { _, _ ->
+                    prefs.askedBackground = true
+                    activity.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", activity.packageName, null)
+                        }
+                    )
+                    pendingBackgroundDone = onDone
+                }
+                .setNegativeButton("Nanti saja") { _, _ -> onDone() }
+                .setOnCancelListener { onDone() }
+                .create()
+            d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
             d.show()
         }
     }
@@ -138,19 +136,21 @@ class PermissionFlow(
     var pendingBackgroundDone: (() -> Unit)? = null
 
     private fun showBackgroundBlockedDialog(onDone: () -> Unit) {
-        val d = buildCardDialog()
-        d.setTitle("Lokasi latar belakang diblokir")
-        d.setMessage("Izin 'Selalu izinkan' ditolak sebelumnya. Untuk mengaktifkannya: Pengaturan → Izin → Lokasi → 'Selalu izinkan'.")
-        d.setPositiveButton("Buka Pengaturan") { _, _ ->
-            activity.startActivity(
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", activity.packageName, null)
-                }
-            )
-            pendingBackgroundDone = onDone
-        }
-        d.setNegativeButton("Nanti saja") { _, _ -> onDone() }
-        d.setOnCancelListener { onDone() }
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Lokasi latar belakang diblokir")
+            .setMessage("Izin 'Selalu izinkan' ditolak sebelumnya. Untuk mengaktifkannya: Pengaturan → Izin → Lokasi → 'Selalu izinkan'.")
+            .setPositiveButton("Buka Pengaturan") { _, _ ->
+                activity.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", activity.packageName, null)
+                    }
+                )
+                pendingBackgroundDone = onDone
+            }
+            .setNegativeButton("Nanti saja") { _, _ -> onDone() }
+            .setOnCancelListener { onDone() }
+            .create()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
         d.show()
     }
 
@@ -171,6 +171,7 @@ class PermissionFlow(
         return pm.isIgnoringBatteryOptimizations(activity.packageName)
     }
 
+    // Launcher battery — didaftarkan saat konstruksi (sebelum onStart) ✓
     private val batteryLauncher = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
