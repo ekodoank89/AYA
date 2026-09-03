@@ -57,58 +57,20 @@
         android:textColor="#80FFFFFF"
         android:textSize="12sp"
         android:lineSpacingExtra="2dp"
-        android:text="Setiap aplikasi memiliki setelan pergerakannya sendiri. Perubahan langsung dikirim tanpa restart app target." />
+        android:text="Setiap aplikasi punya setelan & default-nya sendiri. Perubahan langsung dikirim tanpa restart app target." />
 
-    <!-- Preset -->
-    <LinearLayout
+    <!-- RESET KE DEFAULT target terpilih (teks di-set dari kode) -->
+    <Button
+        android:id="@+id/btn_reset_default"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="16dp">
-
-        <TextView
-            android:id="@+id/preset_diam"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:padding="14dp"
-            android:background="@drawable/bg_mode_off"
-            android:textColor="#99FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:text="Diam\n1m/10dtk/R2m" />
-
-        <Space android:layout_width="10dp" android:layout_height="1dp" />
-
-        <TextView
-            android:id="@+id/preset_normal"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:padding="14dp"
-            android:background="@drawable/bg_mode_on"
-            android:textColor="#C8F7D8"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:text="Normal\n2,5m/6dtk/R3m" />
-
-        <Space android:layout_width="10dp" android:layout_height="1dp" />
-
-        <TextView
-            android:id="@+id/preset_aktif"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:padding="14dp"
-            android:background="@drawable/bg_mode_off"
-            android:textColor="#99FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:text="Aktif\n5m/3dtk/R5m" />
-    </LinearLayout>
+        android:minHeight="56dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_mode_on"
+        android:textColor="#C8F7D8"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="↺ Reset ke Default" />
 
     <!-- Slider langkah -->
     <TextView
