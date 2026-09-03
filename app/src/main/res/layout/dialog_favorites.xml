@@ -14,40 +14,118 @@
         android:textSize="11sp"
         android:text="Nama bebas. Tersimpan: posisi PIN saat ini." />
 
+    <!-- Toggle mode: 📍 Dari Pin / ⌨ Manual -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp">
 
-        <EditText
-            android:id="@+id/fav_name"
+        <TextView
+            android:id="@+id/mode_pin"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:gravity="center"
+            android:padding="9dp"
+            android:background="@drawable/bg_mode_on"
+            android:textColor="#C8F7D8"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:text="📍 Dari Pin" />
+
+        <Space android:layout_width="6dp" android:layout_height="1dp" />
+
+        <TextView
+            android:id="@+id/mode_manual"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:padding="9dp"
+            android:background="@drawable/bg_mode_off"
+            android:textColor="#99FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:text="⌨ Manual" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/fav_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:background="@drawable/bg_coord_chip"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:hint="Nama lokasi…"
+        android:maxLength="40"
+        android:inputType="text"
+        android:textColor="@color/label_text"
+        android:textColorHint="#66FFFFFF"
+        android:textSize="13sp" />
+
+    <!-- Kolom VERTIKAL: Latitude di atas, Longitude di bawah -->
+    <LinearLayout
+        android:id="@+id/latlng_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/in_lat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:background="@drawable/bg_coord_chip"
             android:paddingHorizontal="12dp"
             android:paddingVertical="10dp"
-            android:hint="Nama lokasi…"
-            android:maxLength="40"
-            android:inputType="text"
+            android:hint="Latitude (contoh: -6.2166)"
+            android:inputType="numberDecimal|numberSigned"
+            android:fontFamily="monospace"
             android:textColor="@color/label_text"
             android:textColorHint="#66FFFFFF"
             android:textSize="13sp" />
 
-        <Button
-            android:id="@+id/fav_add"
-            android:layout_width="wrap_content"
+        <EditText
+            android:id="@+id/in_lng"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_play_green_touch"
-            android:minWidth="0dp"
-            android:paddingHorizontal="16dp"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:text="SIMPAN" />
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_coord_chip"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp"
+            android:hint="Longitude (contoh: 106.8491)"
+            android:inputType="numberDecimal|numberSigned"
+            android:fontFamily="monospace"
+            android:textColor="@color/label_text"
+            android:textColorHint="#66FFFFFF"
+            android:textSize="13sp" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/fav_err"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#FF8A80"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/fav_add"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_play_green_touch"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="13sp"
+        android:text="SIMPAN" />
 
     <TextView
         android:id="@+id/fav_empty"
