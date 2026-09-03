@@ -4,14 +4,14 @@ import android.Manifest
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.aya.doank.core.ConfigPusher
 import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
@@ -47,7 +47,12 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // ===== RANTAI IZIN: Lokasi → Notifikasi → Baterai → (Auto-start guide) =====
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
+    // Urutan: Lokasi → Selalu izinkan → Notifikasi → Baterai → Auto-start guide.
+    // Setiap tahap diverifikasi dari STATUS IZIN AKTUAL. Belum granted setelah
+    // permintaan → tahap yang sama DIULANG (jeda 0,7 dtk + toast) hingga granted.
+    private var lastStage = ""
+    private val chainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,7 +77,7 @@ class MainActivity : AppCompatActivity() {
             map.focusFresh()
         }
 
-        // onSettled lokasi → langkah rantai berikutnya (nextChainStep yang mengatur urutan)
+        // Alur izin lokasi selesai (apapun hasilnya) → evaluasi ulang rantai
         permissionFlow.onSettled = { nextChainStep() }
 
         playPanel = PlayPanelController(
@@ -123,34 +128,41 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
-        if (permissionFlow.hasPermission()) {
-            map.ensureBlueDot()
-        } else {
-            nextChainStep()
-        }
+        // Mulai rantai (juga menangani app yang di-clear data)
+        nextChainStep()
     }
 
     /**
-     * Mesin status rantai — URUTAN: Lokasi → Notifikasi → Baterai → Auto-start.
-     * Semua cek berbasis status izin AKTUAL; notif_chain_done mencegah dialog
-     * notifikasi muncul ulang tiap buka app setelah tahapnya pernah dijalankan.
+     * Mesin status rantai + DOUBLE CROSS-CHECK.
+     * Urutan: Lokasi → Selalu izinkan → Notifikasi → Baterai → Auto-start guide.
+     * Setiap callback tahap memanggil nextChainStep() lagi — jika tahap itu
+     * masih belum granted, beginStage() mengulanginya (toast + jeda) hingga OK.
      */
     private fun nextChainStep() {
         when {
-            // 1) LOKASI
-            !permissionFlow.hasPermission() -> {
-                permissionFlow.requestOrGuide()   // onSettled → nextChainStep lagi
-            }
-            // 2) NOTIFIKASI (sebelum baterai — urutan sesuai permintaan user)
-            !notifPerm.isGranted() || !prefs.notifChainDone -> {
-                prefs.notifChainDone = true
-                notifPerm.requestInChain { nextChainStep() }
-            }
-            // 3) BATERAI
-            !permissionFlow.isBatteryUnrestricted() -> {
-                permissionFlow.requestBatteryExemption { nextChainStep() }
-            }
-            // 4) AUTO-START GUIDE (sekali; vendor dikenal saja)
+            // 1) LOKASI DASAR
+            !permissionFlow.hasPermission() ->
+                beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
+            // 2) SELALU IZINKAN (background) — WAJIB OK sebelum lanjut ke notifikasi
+            !permissionFlow.hasBackgroundLocation() ->
+                beginStage("Selalu izinkan") {
+                    permissionFlow.requestBackgroundLocation { nextChainStep() }
+                }
+
+            // 3) NOTIFIKASI — WAJIB OK sebelum lanjut ke baterai
+            !notifPerm.isGranted() ->
+                beginStage("Notifikasi") {
+                    notifPerm.requestInChain { nextChainStep() }
+                }
+
+            // 4) BATERAI — WAJIB OK sebelum selesai
+            !permissionFlow.isBatteryUnrestricted() ->
+                beginStage("Baterai") {
+                    permissionFlow.requestBatteryExemption { nextChainStep() }
+                }
+
+            // 5) AUTO-START GUIDE (sekali; setting vendor — tak bisa diverifikasi API)
             prefs.jitterAskAutostart && VendorAutostartGuide.isKnownVendor() -> {
                 prefs.jitterAskAutostart = false
                 VendorAutostartGuide.show(this)
@@ -158,11 +170,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi
+     * (agar dialog lama sempat tertutup rapi dan user membaca statusnya).
+     */
+    private fun beginStage(name: String, request: () -> Unit) {
+        if (name == lastStage) {
+            Toast.makeText(
+                this,
+                "Izin \"$name\" belum aktif — mengulangi permintaan",
+                Toast.LENGTH_SHORT
+            ).show()
+            chainHandler.postDelayed({ request() }, 700)
+        } else {
+            lastStage = name
+            request()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Kembali dari Settings (jalur lokasi/background diblokir) → lanjutkan rantai
+        // Kembali dari Settings (jalur "Selalu izinkan" / lokasi diblokir)
+        // → selesaikan tahap tertunda → rantai mengevaluasi ulang (double check)
         permissionFlow.resumePendingBackground { nextChainStep() }
 
         // Sinkronkan notifikasi dengan state tersimpan
@@ -177,6 +209,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        chainHandler.removeCallbacksAndMessages(null)
         if (::map.isInitialized) map.stop()
     }
 
