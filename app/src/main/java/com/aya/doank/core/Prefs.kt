@@ -8,7 +8,11 @@ class Prefs(context: Context) {
         context.getSharedPreferences(Keys.PREFS_NAME, Context.MODE_PRIVATE)
 
     init {
-        // Hardening: hapus key orphan dari era ID lama (idempoten — aman dipanggil berulang)
+        cleanupLegacyIds()
+    }
+
+    /** Hardening: hapus key orphan dari era ID lama (idempoten). */
+    private fun cleanupLegacyIds() {
         sp.edit().apply {
             listOf("grab", "gojek").forEach { old ->
                 remove("spoof_${old}_active")
@@ -27,7 +31,6 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASKED_LOCATION, false)
         set(value) = sp.edit().putBoolean(Keys.ASKED_LOCATION, value).apply()
 
-    // ==== v2.4: rantai izin ====
     var askedBackground: Boolean
         get() = sp.getBoolean(Keys.ASKED_BACKGROUND, false)
         set(value) = sp.edit().putBoolean(Keys.ASKED_BACKGROUND, value).apply()
@@ -40,14 +43,24 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASK_AUTOSTART, true)
         set(value) = sp.edit().putBoolean(Keys.ASK_AUTOSTART, value).apply()
 
-    // ==== Jitter settings ====
-    var jitterStep: Float
-        get() = sp.getString(Keys.JIT_STEP, null)?.toFloatOrNull() ?: 2.5f
-        set(value) = sp.edit().putString(Keys.JIT_STEP, value.toString()).apply()
+    // ==== Jitter — PER TARGET (3 parameter, default dari kalibrasi per-app) ====
+    fun jitterStep(id: String): Float =
+        sp.getString(Keys.jitStepKey(id), null)?.toFloatOrNull() ?: 2.5f
 
-    var jitterWindowSec: Int
-        get() = sp.getString(Keys.JIT_WINDOW, null)?.toIntOrNull() ?: 6
-        set(value) = sp.edit().putString(Keys.JIT_WINDOW, value.toString()).apply()
+    fun setJitterStep(id: String, value: Float) =
+        sp.edit().putString(Keys.jitStepKey(id), value.toString()).apply()
+
+    fun jitterWindowSec(id: String): Int =
+        sp.getString(Keys.jitWinKey(id), null)?.toIntOrNull() ?: 6
+
+    fun setJitterWindowSec(id: String, value: Int) =
+        sp.edit().putString(Keys.jitWinKey(id), value.toString()).apply()
+
+    fun jitterRadius(id: String): Float =
+        sp.getString(Keys.jitRadiusKey(id), null)?.toFloatOrNull() ?: 3f
+
+    fun setJitterRadius(id: String, value: Float) =
+        sp.edit().putString(Keys.jitRadiusKey(id), value.toString()).apply()
 
     fun setSpoofActive(id: String, active: Boolean) =
         sp.edit().putBoolean(Keys.spoofActive(id), active).apply()
