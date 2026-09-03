@@ -12,25 +12,20 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.aya.doank.core.Prefs
 import com.aya.doank.R
+import com.aya.doank.core.Prefs
 
 /**
- * Rantai izin (urutan): Lokasi dasar → Lokasi BACKGROUND → Battery optimization → selesai.
- * Notifikasi & auto-start ditangani NotifPermissionFlow / vendor guide (MainActivity).
- * Sinyal: onSettled (alur lokasi dasar selesai), onBackgroundSettled, onBatterySettled.
+ * Izin lokasi dasar + background location + battery.
+ * v2.4: tiap tahap menerima callback onDone — rantai dikendalikan MainActivity.
  */
 class PermissionFlow(
     private val activity: AppCompatActivity,
     private val prefs: Prefs,
     private val onGranted: () -> Unit
 ) {
-    /** Alur izin lokasi dasar selesai (granted/ditolak/batal-settings). */
+    /** Alur izin lokasi dasar selesai (dipakai rantai + pemanggil lama). */
     var onSettled: (() -> Unit)? = null
-    /** Alur background location selesai (apapun hasilnya). */
-    var onBackgroundSettled: (() -> Unit)? = null
-    /** Alur battery selesai. */
-    var onBatterySettled: (() -> Unit)? = null
 
     private val permissions = arrayOf(
         Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -98,34 +93,24 @@ class PermissionFlow(
                     activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
 
-    /**
-     * Tahap 2 — dipanggil SETELAH lokasi dasar granted.
-     * Android 10+: dialog "Allow all the time" tidak bisa dipicu launcher biasa;
-     * kita tunjukkan dialog penjelasan → tombol Settings (halaman izin app).
-     */
-    fun requestBackgroundLocation() {
-        if (hasBackgroundLocation()) {
-            onBackgroundSettled?.invoke()
-            return
-        }
-        if (!hasPermission()) {   // dasar belum ada — hentikan rantai di sini
-            onBackgroundSettled?.invoke()
-            return
-        }
-        if (Build.VERSION.SDK_INT >= 29 &&
-            !activity.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
-            prefs.askedBackground
-        ) {
-            // Diblokir / ditolak permanen → langsung Settings
-            showBackgroundSettingsDialog()
+    /** Tahap background — onDone dipanggil saat alur selesai (apapun hasilnya). */
+    fun requestBackgroundLocation(onDone: () -> Unit) {
+        if (hasBackgroundLocation()) { onDone(); return }
+        if (!hasPermission()) { onDone(); return }
+
+        val blocked = Build.VERSION.SDK_INT >= 29 &&
+                !activity.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
+                prefs.askedBackground
+
+        if (blocked) {
+            showBackgroundBlockedDialog(onDone)
         } else {
-            // Dialog penjelasan dulu (WAJIB di Android 11+: tanpa ini, opsi "Always" tidak muncul)
             AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
                 .setTitle("Izinkan lokasi di latar belakang?")
                 .setMessage(
-                    "AYA perlu lokasi 'Selalu izinkan' agar titik biru dan status tetap akurat\n" +
+                    "AYA perlu lokasi 'Selalu izinkan' agar titik biru dan status tetap akurat " +
                     "walaupun aplikasi sedang tidak dibuka.\n\n" +
-                    "Di layar berikutnya: pilih 'Selalu izinkan' (Allow all the time)."
+                    "Di layar berikutnya pilih 'Selalu izinkan' (Allow all the time)."
                 )
                 .setPositiveButton("Buka Pengaturan") { _, _ ->
                     prefs.askedBackground = true
@@ -134,14 +119,19 @@ class PermissionFlow(
                             data = Uri.fromParts("package", activity.packageName, null)
                         }
                     )
+                    // Hasil dicek MainActivity di onResume → onComplete dipanggil di sana
+                    pendingBackgroundDone = onDone
                 }
-                .setNegativeButton("Nanti saja") { _, _ -> onBackgroundSettled?.invoke() }
-                .setOnCancelListener { onBackgroundSettled?.invoke() }
+                .setNegativeButton("Nanti saja") { _, _ -> onDone() }
+                .setOnCancelListener { onDone() }
                 .show()
         }
     }
 
-    private fun showBackgroundSettingsDialog() {
+    /** Callback tertunda untuk jalur Settings (dipanggil MainActivity.onResume). */
+    var pendingBackgroundDone: (() -> Unit)? = null
+
+    private fun showBackgroundBlockedDialog(onDone: () -> Unit) {
         AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Lokasi latar belakang diblokir")
             .setMessage("Izin 'Selalu izinkan' ditolak sebelumnya. Untuk mengaktifkannya: Pengaturan → Izin → Lokasi → 'Selalu izinkan'.")
@@ -151,33 +141,52 @@ class PermissionFlow(
                         data = Uri.fromParts("package", activity.packageName, null)
                     }
                 )
+                pendingBackgroundDone = onDone
             }
-            .setNegativeButton("Nanti saja") { _, _ -> onBackgroundSettled?.invoke() }
-            .setOnCancelListener { onBackgroundSettled?.invoke() }
+            .setNegativeButton("Nanti saja") { _, _ -> onDone() }
+            .setOnCancelListener { onDone() }
             .show()
     }
 
-    // ====== 3) BATTERY OPTIMIZATION ======
+    /** Dipanggil MainActivity.onResume — selesaikan tahap background jika tertunda. */
+    fun resumePendingBackground(onDone: () -> Unit) {
+        pendingBackgroundDone?.let {
+            pendingBackgroundDone = null
+            if (hasBackgroundLocation()) {
+                Toast.makeText(activity, "Lokasi latar belakang aktif", Toast.LENGTH_SHORT).show()
+            }
+            it()   // lanjut rantai apapun hasilnya
+        }
+    }
+
+    // ====== 3) BATTERY (dengan callback via ActivityResult) ======
     fun isBatteryUnrestricted(): Boolean {
-        val pm = activity.getSystemService(android.content.Context.POWER_SERVICE)
-                as android.os.PowerManager
+        val pm = activity.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
         return pm.isIgnoringBatteryOptimizations(activity.packageName)
     }
 
-    /** Dialog sistem — BUKAN runtime permission biasa. */
-    fun requestBatteryExemption() {
-        if (isBatteryUnrestricted()) {
-            onBatterySettled?.invoke()
-            return
-        }
+    // Launcher battery — didaftarkan saat konstruksi (sebelum onStart) ✓
+    private val batteryLauncher = activity.registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // Kembali dari dialog battery — apapun pilihannya, lanjutkan rantai
+        batteryDone?.invoke()
+        batteryDone = null
+    }
+
+    private var batteryDone: (() -> Unit)? = null
+
+    fun requestBatteryExemption(onDone: () -> Unit) {
+        if (isBatteryUnrestricted()) { onDone(); return }
+        batteryDone = onDone
         val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:${activity.packageName}")
         }
         try {
-            activity.startActivity(i)
+            batteryLauncher.launch(i)
         } catch (t: Throwable) {
-            // Perangkat tanpa aktivitas ini (jarang) — lewati tahap
-            onBatterySettled?.invoke()
+            batteryDone = null
+            onDone()
         }
     }
 
