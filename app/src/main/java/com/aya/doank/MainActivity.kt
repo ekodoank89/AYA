@@ -35,9 +35,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
 
     // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
+    // Hasil deny/allow dinilai saat ▶ ditekan lewat notifs.canNotify().
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* deny/allow dinilai ulang saat ▶ ditekan via canNotify() */ }
+    ) { /* tidak melakukan apa-apa; evaluasi ulang saat ▶ ditekan */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +53,7 @@ class MainActivity : AppCompatActivity() {
             FavoritesStore(this),
             centerProvider = { map.currentCenter() }
         ) { latLng, name ->
+            // Pin selalu di tengah layar → memindah peta = "memindahkan pin"
             map.flyTo(latLng)
             Toast.makeText(this, "Pin → $name. Tekan ▶ untuk lock.", Toast.LENGTH_SHORT).show()
         }
@@ -91,9 +93,11 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= 33) Context.RECEIVER_NOT_EXPORTED else 0
         )
 
+        // Chip koordinat pin GONE — callback tetap disiapkan agar mudah diaktifkan kembali
         map.onCenterChanged = { _, _ -> }
         map.onBlueDotChanged = { _, _ -> playPanel.onBlueDotChanged() }
 
+        // Tombol ★ FAVORIT — kini di dalam panel (di bawah GOJEK), id tetap btn_fav
         favorites.bind(R.id.btn_fav)
 
         findViewById<Button>(R.id.btn_zoom_in).setOnClickListener { map.zoomMax() }
@@ -111,8 +115,9 @@ class MainActivity : AppCompatActivity() {
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
+        // ==== Minta izin lokasi saat pertama dibuka / setelah hapus data ====
         if (permissionFlow.hasPermission()) {
-            map.ensureBlueDot()
+            map.ensureBlueDot()   // peta belum siap? aman — pendingEnsure menahan sampai onReady
         } else {
             permissionFlow.requestOrGuide()
         }
@@ -124,6 +129,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
+        // Sinkronkan notifikasi dengan state tersimpan
+        // (app dibuka ulang saat spoofing masih aktif → notif kembali tampil)
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
@@ -138,6 +145,7 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
+    // ===== Stop dari tombol notifikasi =====
     private fun stopFromNotif(targetId: String) {
         val t = Targets.byId(targetId)
         prefs.setSpoofActive(t.id, false)
