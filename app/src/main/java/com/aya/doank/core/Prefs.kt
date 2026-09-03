@@ -15,6 +15,15 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(Keys.ASKED_LOCATION, false)
         set(value) = sp.edit().putBoolean(Keys.ASKED_LOCATION, value).apply()
 
+            // ==== Jitter settings ====
+    var jitterStep: Float
+        get() = sp.getString(Keys.JIT_STEP, null)?.toFloatOrNull() ?: 2.5f
+        set(value) = sp.edit().putString(Keys.JIT_STEP, value.toString()).apply()
+
+    var jitterWindowSec: Int
+        get() = sp.getString(Keys.JIT_WINDOW, null)?.toIntOrNull() ?: 6
+        set(value) = sp.edit().putString(Keys.JIT_WINDOW, value.toString()).apply()
+        
     fun setSpoofActive(id: String, active: Boolean) =
         sp.edit().putBoolean(Keys.spoofActive(id), active).apply()
 
