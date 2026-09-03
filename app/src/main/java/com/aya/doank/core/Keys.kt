@@ -5,7 +5,10 @@ object Keys {
     const val IS_DARK = "is_dark"
     const val ASKED_LOCATION = "asked_location"
     const val FAVORITES = "favorites_json"
-
+        // Jitter (pergerakan titik) — bisa diubah live via push
+    const val JIT_STEP = "jit_step"
+    const val JIT_WINDOW = "jit_window"
+    
     // ==== Schema spoof — DIBACA HOOK di proses target. Jangan diubah sembarangan! ====
     private const val KEY_ACTIVE_TEMPLATE = "spoof_%s_active"
     private const val KEY_LAT_TEMPLATE = "spoof_%s_lat"
