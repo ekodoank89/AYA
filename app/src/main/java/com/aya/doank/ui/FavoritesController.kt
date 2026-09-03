@@ -207,9 +207,9 @@ class FavoritesController(
         d.show()
     }
 
-    private fun askDelete(i: Int) {
+        private fun askDelete(i: Int) {
         val f = store.all().getOrNull(i) ?: return
-        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Hapus lokasi?")
             .setMessage("\"${f.name}\" akan dihapus permanen dari daftar favorit.")
             .setPositiveButton("Hapus") { _, _ ->
@@ -218,7 +218,11 @@ class FavoritesController(
                 Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .create()
+        d.setOnShowListener {
+            d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        }
+        d.show()
     }
 
     private fun refreshDialogIfOpen() {
