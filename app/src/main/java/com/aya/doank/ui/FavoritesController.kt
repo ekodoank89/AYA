@@ -1,7 +1,6 @@
 package com.aya.doank.ui
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
@@ -9,7 +8,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AlertDialog          ← SATU-SATUNYA AlertDialog
 import com.aya.doank.R
 import com.aya.doank.core.FavoritesStore
 import com.google.android.gms.maps.model.LatLng
