@@ -16,9 +16,9 @@ import com.aya.doank.R
 import com.aya.doank.core.Prefs
 
 /**
- * Izin lokasi dasar + background + battery.
- * v2.4.1: semua dialog diberi background kartu solid (bg_dialog_card) —
- * pola: Builder rantai penuh → .create() → set window background → .show().
+ * v2.4.2: rantai izin — Lokasi dasar, Background ("Selalu izinkan"), Battery.
+ * Semua dialog kartu solid (bg_dialog_card). Double cross-check dikendalikan
+ * MainActivity (nextChainStep + beginStage); semua tahap punya callback onDone.
  */
 class PermissionFlow(
     private val activity: AppCompatActivity,
@@ -149,9 +149,7 @@ class PermissionFlow(
             }
             .setNegativeButton("Nanti saja") { _, _ -> onDone() }
             .setOnCancelListener { onDone() }
-            .create()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        d.show()
+            .show()
     }
 
     /** Dipanggil MainActivity.onResume — selesaikan tahap background jika tertunda. */
@@ -165,13 +163,12 @@ class PermissionFlow(
         }
     }
 
-    // ====== 3) BATTERY (callback via ActivityResult) ======
+    // ====== 3) BATTERY (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) ======
     fun isBatteryUnrestricted(): Boolean {
         val pm = activity.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
         return pm.isIgnoringBatteryOptimizations(activity.packageName)
     }
 
-    // Launcher battery — didaftarkan saat konstruksi (sebelum onStart) ✓
     private val batteryLauncher = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
