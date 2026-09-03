@@ -5,8 +5,7 @@ import android.content.Intent
 
 /**
  * Mendorong config spoof ke proses target via broadcast.
- * Arah ini bebas dari dinding package visibility, karena MANAGER yang mendeklarasikan
- * <queries> untuk package target — target tidak perlu tahu keberadaan AYA.
+ * v2.3: + setting jitter (step/window) ikut terkirim — hook membaca tanpa restart.
  */
 class ConfigPusher(private val context: Context) {
 
@@ -17,6 +16,8 @@ class ConfigPusher(private val context: Context) {
         val active = sp.getBoolean(Keys.spoofActive(target.id), false)
         val lat = sp.getString(Keys.spoofLat(target.id), null)
         val lng = sp.getString(Keys.spoofLng(target.id), null)
+        val jStep = sp.getString(Keys.JIT_STEP, null)
+        val jWin = sp.getString(Keys.JIT_WINDOW, null)
 
         target.packageNames.forEach { pkg ->
             try {
@@ -26,8 +27,10 @@ class ConfigPusher(private val context: Context) {
                         .putExtra("active", active)
                         .putExtra("lat", lat)
                         .putExtra("lng", lng)
+                        .putExtra("jit_step", jStep)
+                        .putExtra("jit_win", jWin)
                 )
-            } catch (_: Throwable) { /* target tak terlihat / tidak ada — biarkan fallback */ }
+            } catch (_: Throwable) { /* target tak terlihat — biarkan fallback */ }
         }
     }
 
