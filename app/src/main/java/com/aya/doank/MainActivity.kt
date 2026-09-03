@@ -47,9 +47,10 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
+    private var batteryOnceThisSession = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,8 +77,8 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // v2.6.3: playPanel yang push (push dulu sebelum buka app target) —
-        // MainActivity tidak lagi meng-push ganda di sini.
+        // v2.6.3: playPanel yang push (push dulu SEBELUM app target dibuka) —
+        // MainActivity tidak meng-push ganda di sini.
         playPanel = PlayPanelController(
             this, prefs,
             centerProvider = { map.currentCenter() }
@@ -132,32 +133,47 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (kembali dari Settings dicek onResume)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI (batteryOnceThisSession, tidak ditagih)
+     * FIX: memakai requestBatteryExemption (API PermissionFlow yang ada),
+     * bukan tryBatteryExemptionSilent dari batch lama yang tidak pernah ada di v2.4.2.
+     */
     private fun nextChainStep() {
         when {
+            // 1) LOKASI DASAR
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
 
+            // 2) SELALU IZINKAN (background)
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
 
+            // 3) NOTIFIKASI
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
 
+            // 4) BATERAI — dialog sistem sekali per sesi, tidak ditagih ulang
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
-                    permissionFlow.tryBatteryExemptionSilent()
+                    permissionFlow.requestBatteryExemption { /* selesai — tidak diulang */ }
                 }
             }
         }
     }
 
-    private var batteryOnceThisSession = false
-
+    /**
+     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
+     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
             Toast.makeText(
@@ -176,8 +192,11 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
+        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
+        // → selesaikan tahap tertunda → rantai mengevaluasi ulang (double check)
         permissionFlow.resumePendingBackground { nextChainStep() }
 
+        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
@@ -196,7 +215,7 @@ class MainActivity : AppCompatActivity() {
     private fun stopFromNotif(targetId: String) {
         val t = Targets.byId(targetId)
         prefs.setSpoofActive(t.id, false)
-        pusher.push(t)                      // push dari sini (jalur notifikasi)
+        pusher.push(t)
         playPanel.refresh(t.id)
         notifs.hide(t)
         Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
