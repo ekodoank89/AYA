@@ -50,4 +50,8 @@ Konvensi
 • MainActivity tipis — logika di controller
 
 
+| Chip koordinat | DIHAPUS v2.2.2 — hidup di git history (commit sebelum v2.2.1) bila ingin dihidupkan ulang |
+
+
+
 
