@@ -18,6 +18,14 @@ class PermissionFlow(
     private val prefs: Prefs,
     private val onGranted: () -> Unit
 ) {
+    /**
+     * Dipanggil saat ALUR izin lokasi selesai (apapun hasilnya):
+     * granted langsung, granted/ditolak dari dialog, atau dialog blokir ditutup (Batal).
+     * SATU PENGECUALIAN: cabang "Buka Pengaturan" tidak memicu di sini —
+     * pemanggil (MainActivity) menanganinya via onResume + flag.
+     */
+    var onSettled: (() -> Unit)? = null
+
     private val permissions = arrayOf(
         Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION
@@ -30,6 +38,7 @@ class PermissionFlow(
                 result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) onGranted()
         else Toast.makeText(activity, "Izin lokasi ditolak — peta tetap bisa digunakan", Toast.LENGTH_LONG).show()
+        onSettled?.invoke()   // alur selesai (granted atau ditolak)
     }
 
     fun hasPermission(): Boolean =
@@ -39,7 +48,7 @@ class PermissionFlow(
     /** 3 jalur: sudah izin → langsung; masih bisa dialog → minta; diblokir → arahkan Settings. */
     fun requestOrGuide() {
         when {
-            hasPermission()       -> onGranted()
+            hasPermission()       -> { onGranted(); onSettled?.invoke() }   // alur instan selesai
             canShowSystemDialog() -> request()
             else                  -> showBlockedDialog()
         }
@@ -57,11 +66,21 @@ class PermissionFlow(
     }
 
     private fun showBlockedDialog() {
-        AlertDialog.Builder(activity)
+        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Izin lokasi diblokir")
             .setMessage("Izin lokasi telah ditolak berulang kali, sehingga sistem tidak lagi menampilkan dialog. Untuk mengaktifkan fitur titik biru, nyalakan izin Lokasi di Pengaturan aplikasi.")
-            .setPositiveButton("Buka Pengaturan") { _, _ -> openSettings() }
-            .setNegativeButton("Batal", null)
+            .setPositiveButton("Buka Pengaturan") { _, _ ->
+                // Buka Pengaturan = alur berlanjut di luar app.
+                // onSettled TIDAK dipanggil di sini — MainActivity menanganinya
+                // di onResume setelah user kembali (lihat awaitingLocationSettle).
+                activity.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", activity.packageName, null)
+                    }
+                )
+            }
+            .setNegativeButton("Batal") { _, _ -> onSettled?.invoke() }   // user menunda → alur selesai
+            .setOnCancelListener { onSettled?.invoke() }
             .show()
     }
 
