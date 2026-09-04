@@ -19,24 +19,88 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Chip koordinat pin: GONE sementara -->
-    <TextView
-        android:id="@+id/tv_center"
-        android:layout_width="wrap_content"
+    <!-- ==== CHIP TELEMETRI GRAB & GOJEK (kiri-atas) ==== -->
+    <LinearLayout
+        android:id="@+id/chips_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="40dp"
-        android:background="@drawable/bg_chip"
-        android:elevation="6dp"
-        android:paddingHorizontal="11dp"
-        android:paddingVertical="7dp"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:visibility="gone"
-        android:text="…" />
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:elevation="7dp">
 
-    <!-- Kolom kanan: GPS + tema -->
+        <LinearLayout
+            android:id="@+id/chip_grab"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_coord_chip"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/tc_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="GRAB — OFF" />
+
+            <TextView
+                android:id="@+id/tc_coord"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:text="—" />
+
+            <TextView
+                android:id="@+id/tc_extra"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8FD3A0"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <Space android:layout_width="match_parent" android:layout_height="8dp" />
+
+        <LinearLayout
+            android:id="@+id/chip_gojek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_coord_chip"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/tc_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="GOJEK — OFF" />
+
+            <TextView
+                android:id="@+id/tc_coord"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:text="—" />
+
+            <TextView
+                android:id="@+id/tc_extra"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8FD3A0"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Kolom kanan: GPS + tema + zoom -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
@@ -99,7 +163,7 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- Panel: GRAB / GOJEK / FAVORIT — satu kontainer -->
+    <!-- Panel play: GRAB / GOJEK / FAVORIT / JITTER -->
     <LinearLayout
         android:id="@+id/playgroup"
         android:layout_width="wrap_content"
@@ -209,7 +273,7 @@
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_divider" />
 
-        <!-- FAVORIT: baris aksi ketiga dalam panel -->
+        <!-- FAVORIT -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -225,7 +289,7 @@
                 android:textStyle="bold"
                 android:letterSpacing="0.125" />
 
-                        <ImageButton
+            <ImageButton
                 android:id="@+id/btn_fav"
                 android:layout_width="64dp"
                 android:layout_height="48dp"
@@ -235,40 +299,5 @@
                 android:contentDescription="Lokasi tersimpan"
                 android:src="@drawable/ic_star_white" />
         </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_divider" />
-
-        <!-- JITTER: baris keempat panel -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="11dp"
-                android:text="@string/jitter_label"
-                android:textColor="@color/label_text"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.125" />
-
-            <ImageButton
-                android:id="@+id/btn_jitter"
-                android:layout_width="64dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="5dp"
-                android:padding="13dp"
-                android:background="@drawable/bg_fav_touch"
-                android:contentDescription="Pengaturan pergerakan titik"
-                android:src="@drawable/ic_tune" />
-        </LinearLayout>
-        
     </LinearLayout>
 </FrameLayout>
