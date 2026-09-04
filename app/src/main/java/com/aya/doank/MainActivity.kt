@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // Handler chip telemetri (tick 1 dtk)
+    // Handler untuk chip telemetri (tick 1 dtk)
     private val chipHandler = Handler(Looper.getMainLooper())
     private val chipTick = object : Runnable {
         override fun run() {
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
-        // ==== CHIP TELEMETRI (v2.7) ====
+        // ==== CHIP TELEMETRI ====
         chipTelemetry = ChipTelemetry(this, prefs)
         chipTelemetry.bind()
 
@@ -148,7 +148,6 @@ class MainActivity : AppCompatActivity() {
             nextChainStep()
         }
 
-        // Mulai tick chip telemetri
         chipHandler.post(chipTick)
     }
 
@@ -156,8 +155,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
-        // → selesaikan tahap tertunda → rantai evaluasi ulang (double check)
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
 
         // Sinkronkan notifikasi dengan state tersimpan
@@ -168,15 +166,16 @@ class MainActivity : AppCompatActivity() {
                 notifs.hide(t)
             }
         }
-
-        // Tick chip langsung jalan (jangan tunggu 1 dtk pertama)
-        chipTelemetry.onTick()
     }
 
     override fun onPause() {
         super.onPause()
-        // Hentikan tick saat app tidak terlihat — hemat baterai
         chipHandler.removeCallbacks(chipTick)
+    }
+
+    override fun onResume() {  // ← INI DUPLIKAT — HAPUS SALAH SATU
+        super.onResume()
+        chipHandler.post(chipTick)
     }
 
     override fun onDestroy() {
@@ -186,40 +185,23 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
-    private fun nextChainStep() {
-        when {
-            // 1) LOKASI DASAR
-            !permissionFlow.hasPermission() ->
-                beginStage("Lokasi") { permissionFlow.requestOrGuide() }
-
-            // 2) SELALU IZINKAN (background)
-            !permissionFlow.hasBackgroundLocation() ->
-                beginStage("Selalu izinkan") {
-                    permissionFlow.requestBackgroundLocation { nextChainStep() }
-                }
-
-            // 3) NOTIFIKASI
-            !notifPerm.isGranted() ->
-                beginStage("Notifikasi") {
-                    notifPerm.requestInChain { nextChainStep() }
-                }
-
-            // 4) BATERAI — dialog sistem sekali per sesi, tidak ditagih ulang
-            !permissionFlow.isBatteryUnrestricted() -> {
-                if (!batteryOnceThisSession) {
-                    batteryOnceThisSession = true
-                    permissionFlow.requestBatteryExemption { /* selesai — tidak diulang */ }
-                }
-            }
-        }
+    private fun stopFromNotif(targetId: String) {
+        val t = Targets.byId(targetId)
+        prefs.setSpoofActive(t.id, false)
+        pusher.push(t)
+        playPanel.refresh(t.id)
+        notifs.hide(t)
+        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
     }
 
-    private fun beginStage(name: String, request: () -> Unit) {
-        if (name == lastStage) {
-            Toast.makeText(
-                this,
-                "Izin \"$name\" belum aktif — mengulangi permintaan",
-                Toast.LENGTH_SHORT
-            ).show()
-            chainHandler.postDelayed({ request() }, 700)
-        } else
+    private fun announce(target: SpoofTarget, active: Boolean) {
+        val msg = if (active) "${target.label} AKTIF — lock ${map.centerText()} — membuka aplikasi…"
+                  else "${target.label} dihentikan — notif hilang"
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun updateThemeIcon() {
+        findViewById<ImageButton>(R.id.btn_theme)
+            .setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
+    }
+}
