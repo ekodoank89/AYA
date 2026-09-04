@@ -41,7 +41,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jitter: JitterController
     private lateinit var chipTelemetry: ChipTelemetry
 
-    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -49,7 +48,6 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // Handler chip telemetri (tick 1 dtk)
     private val chipHandler = Handler(Looper.getMainLooper())
     private val chipTick = object : Runnable {
         override fun run() {
@@ -58,7 +56,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -88,8 +85,6 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // v2.6.4: PlayPanel mem-push sendiri saat toggle
-        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
             pusher = pusher,
@@ -107,7 +102,6 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
-        // Tombol ■ di notifikasi → broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
             runOnUiThread { stopFromNotif(targetId) }
         }
@@ -119,7 +113,6 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
-        // ==== JITTER ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -135,7 +128,6 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
-        // ==== CHIP TELEMETRI ====
         chipTelemetry = ChipTelemetry(this, prefs)
         chipTelemetry.bind()
 
@@ -155,11 +147,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
         chipHandler.post(chipTick)
-
-        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
-
-        // Sinkronkan notifikasi dengan state tersimpan
         Targets.all.forEach { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
@@ -181,28 +169,18 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
-    /**
-     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
-     * 1) Lokasi dasar   — ulang hingga granted
-     * 2) Selalu izinkan — ulang hingga granted
-     * 3) Notifikasi     — ulang hingga granted
-     * 4) Baterai        — dialog sistem SEKALI per sesi
-     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
-
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
-
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
-
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
