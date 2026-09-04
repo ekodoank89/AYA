@@ -2,22 +2,27 @@ package com.aya.doank.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.ImageButton
 import android.widget.Toast
 import com.aya.doank.R
+import com.aya.doank.core.ConfigPusher
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
 
 /**
  * Panel play: GRAB & GOJEK.
- * v2.6.3: saat ▶ (AKTIFKAN), selain lock+push, langsung membuka aplikasi target.
- * Saat ■ (stop) tidak membuka apa pun. Fallback terukur bila app tak ditemukan.
+ * v2.6.4 FIX: saat ▶ — lock → PUSH (kini benar-benar dikirim; regression v2.6.3
+ * lupa memanggil push) → buka app target → push ulang terjadwal (1s/3s/6s)
+ * untuk menangkap receiver target yang baru terpasang.
  */
 class PlayPanelController(
     private val activity: Activity,
     private val prefs: Prefs,
+    private val pusher: ConfigPusher,
     private val centerProvider: () -> com.google.android.gms.maps.model.LatLng?,
     private val onToggle: (target: SpoofTarget, active: Boolean) -> Unit
 ) {
@@ -26,6 +31,7 @@ class PlayPanelController(
     )
 
     private val rows = mutableListOf<Row>()
+    private val handler = Handler(Looper.getMainLooper())
 
     fun bind() {
         listOf(
@@ -52,35 +58,49 @@ class PlayPanelController(
         }
         render(row)
 
-        // 2) Push dulu — agar config sudah benar SEBELUM app target dibuka
         val target = Targets.byId(row.targetId)
+
+        // 2) PUSH — v2.6.4: regresi v2.6.3 diperbaiki, config benar-benar terkirim
+        pusher.push(target)
+
+        // 3) Callback UI (notif, dsb.)
         onToggle(target, active)
 
-        // 3) ▶ = buka aplikasi target (bukan saat ■)
+        // 4) ▶ = buka aplikasi target + push ulang terjadwal
         if (active) launchTarget(target)
     }
 
-    /** Buka launcher activity target; coba tiap package di daftar, fallback toast. */
+    /**
+     * Buka launcher activity target. Setelah launch, push diulang pada 1s/3s/6s —
+     * receiver target baru terpasang beberapa detik SETELAH proses start, dan
+     * broadcast biasa tidak menunggu; push ulang menangkapnya.
+     */
     private fun launchTarget(target: SpoofTarget) {
         val pm = activity.packageManager
 
-        // Jalur 1: launcher activity (cara paling andal membuka app lain)
+        var launched = false
         for (pkg in target.packageNames) {
             val launch = pm.getLaunchIntentForPackage(pkg)
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 activity.startActivity(launch)
-                return
+                launched = true
+                break
             }
         }
 
-        // Jalur 2 (fallback): coba explicit activity utama via resolve — sudah dicakup
-        // queries di manifest; kalau semua gagal → toast, spoofing tetap aktif.
-        Toast.makeText(
-            activity,
-            "${target.label} tidak dapat dibuka — buka manual. Spoofing tetap aktif.",
-            Toast.LENGTH_LONG
-        ).show()
+        if (launched) {
+            // Push ulang terjadwal: menangkap receiver yang baru saja terpasang
+            listOf(1000L, 3000L, 6000L).forEach { delay ->
+                handler.postDelayed({ pusher.push(target) }, delay)
+            }
+        } else {
+            Toast.makeText(
+                activity,
+                "${target.label} tidak dapat dibuka — buka manual. Spoofing tetap aktif.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     /** Render ulang satu target (dipakai stop dari notifikasi). */
