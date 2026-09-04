@@ -19,88 +19,7 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- ==== CHIP TELEMETRI GRAB & GOJEK (kiri-atas) ==== -->
-    <LinearLayout
-        android:id="@+id/chips_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:orientation="vertical"
-        android:padding="8dp"
-        android:elevation="7dp">
-
-        <LinearLayout
-            android:id="@+id/chip_grab"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_coord_chip"
-            android:padding="10dp">
-
-            <TextView
-                android:id="@+id/tc_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:text="GRAB — OFF" />
-
-            <TextView
-                android:id="@+id/tc_coord"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:text="—" />
-
-            <TextView
-                android:id="@+id/tc_extra"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#8FD3A0"
-                android:textSize="10sp" />
-        </LinearLayout>
-
-        <Space android:layout_width="match_parent" android:layout_height="8dp" />
-
-        <LinearLayout
-            android:id="@+id/chip_gojek"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_coord_chip"
-            android:padding="10dp">
-
-            <TextView
-                android:id="@+id/tc_name_gojek"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:text="GOJEK — OFF" />
-
-            <TextView
-                android:id="@+id/tc_coord_gojek"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:text="—" />
-
-            <TextView
-                android:id="@+id/tc_extra_gojek"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#8FD3A0"
-                android:textSize="10sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Kolom kanan -->
+    <!-- Kolom kanan: GPS + tema + zoom -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
@@ -163,7 +82,7 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- Panel play: GRAB / GOJEK / FAVORIT / JITTER -->
+    <!-- Panel: GRAB / GOJEK / FAVORIT / JITTER -->
     <LinearLayout
         android:id="@+id/playgroup"
         android:layout_width="wrap_content"
