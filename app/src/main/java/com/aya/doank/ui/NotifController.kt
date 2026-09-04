@@ -19,9 +19,10 @@ import java.util.Locale
 /**
  * Satu notifikasi per target aktif (ongoing, tak bisa di-swipe).
  * v2.6.5: IMPORTANCE_HIGH + PRIORITY_MAX — tampil paling atas di shade
- * agar tombol ■ STOP selalu mudah dijangkau, tidak tergeser notif lain.
- * Channel dibuat IMPORTANCE_HIGH → muncul heads-up sekali saat ▶ ditekan
- * (user melihat langsung bahwa spoofing aktif), lalu tenang (onlyAlertOnce).
+ * agar tombol ■ STOP selalu mudah dijangkau.
+ * v2.6.5-fix: channel lama (IMPORTANCE_LOW) DIHAPUS lalu dibuat ulang HIGH —
+ * Android tidak menaikkan importance channel yang sudah ada, maka
+ * delete + recreate diwajibkan saat init (aman: belum ada notif yang tampil).
  */
 class NotifController(private val context: Context) {
 
@@ -29,11 +30,16 @@ class NotifController(private val context: Context) {
 
     init {
         if (Build.VERSION.SDK_INT >= 26) {
+            // Channel lama mungkin terlanjur ada dengan IMPORTANCE_LOW —
+            // hapus dulu agar recreate dengan HIGH benar-benar berlaku.
+            try {
+                nm.deleteNotificationChannel(CHANNEL_ID)
+            } catch (_: Throwable) { }
             nm.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
                     "AYA Spoofing",
-                    NotificationManager.IMPORTANCE_HIGH   // ← atas + heads-up
+                    NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Kendali spoofing AYA"
                     setShowBadge(false)
@@ -57,8 +63,8 @@ class NotifController(private val context: Context) {
             .setSmallIcon(R.drawable.ic_stat_aya)
             .setContentTitle("AYA — ${target.label} aktif")
             .setContentText(String.format(Locale.US, "%.6f, %.6f", lat, lng))
-            .setPriority(NotificationCompat.PRIORITY_MAX)   // ← kompatibilitas pre-Oreo
-            .setCategory(NotificationCompat.CATEGORY_NAVIGATION) // kategori navigasi = prioritas tampil
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .addAction(0, "■ STOP", stopIntent)
