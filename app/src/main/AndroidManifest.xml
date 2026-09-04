@@ -29,7 +29,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Substitusi lokasi pin AYA ke aplikasi target" />
+            android:value="" />  <!-- Deskripsi pada Lsposed Modul -->
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
