@@ -1,8 +1,6 @@
 package com.aya.doank
 
 import android.Manifest
-import android.content.Context
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -41,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var jitter: JitterController
     private lateinit var chipTelemetry: ChipTelemetry
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -48,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
+    // Handler chip telemetri (tick 1 dtk)
     private val chipHandler = Handler(Looper.getMainLooper())
     private val chipTick = object : Runnable {
         override fun run() {
@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -86,6 +86,8 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
+        // v2.6.4: PlayPanel mem-push sendiri saat toggle
+        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
             pusher = pusher,
@@ -96,19 +98,9 @@ class MainActivity : AppCompatActivity() {
                     notifPerm.ensureBeforePlay { }
                 }
             }
-            refreshNotif()   // ← satu pintu: kumpulkan target aktif → update notif gabungan
+            refreshNotif()
             announce(target, active)
         }
-
-        // Tombol ■ di notifikasi → broadcast → stop target terkait
-        NotifController.onNotifStop = { targetId ->
-            runOnUiThread { stopFromNotif(targetId) }
-        }
-        registerReceiver(
-            NotifController.StopReceiver(),
-            IntentFilter(NotifController.ACTION_STOP),
-            if (Build.VERSION.SDK_INT >= 33) Context.RECEIVER_NOT_EXPORTED else 0
-        )
 
         favorites.bind(R.id.btn_fav)
 
@@ -145,9 +137,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Satu pintu update notifikasi gabungan:
+     * Satu pintu update notifikasi indikator:
      * kumpulkan semua target AKTIF + titik lock-nya → NotifController.update().
-     * Dipanggil dari toggle, stop, dan onResume.
+     * Dipanggil dari toggle, stop (panel), dan onResume.
      */
     private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
@@ -163,8 +155,10 @@ class MainActivity : AppCompatActivity() {
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
         chipHandler.post(chipTick)
 
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
 
+        // Notifikasi indikator sinkron dengan state tersimpan
         refreshNotif()
     }
 
@@ -180,6 +174,13 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (kembali dari Settings dicek onResume)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
+     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
@@ -216,15 +217,6 @@ class MainActivity : AppCompatActivity() {
             lastStage = name
             request()
         }
-    }
-
-    private fun stopFromNotif(targetId: String) {
-        val t = Targets.byId(targetId)
-        prefs.setSpoofActive(t.id, false)
-        pusher.push(t)
-        playPanel.refresh(t.id)
-        refreshNotif()
-        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
