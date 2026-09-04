@@ -18,11 +18,13 @@ import java.util.Locale
 
 /**
  * Satu notifikasi per target aktif (ongoing, tak bisa di-swipe).
- * v2.6.5: IMPORTANCE_HIGH + PRIORITY_MAX — tampil paling atas di shade
- * agar tombol ■ STOP selalu mudah dijangkau.
- * v2.6.5-fix: channel lama (IMPORTANCE_LOW) DIHAPUS lalu dibuat ulang HIGH —
- * Android tidak menaikkan importance channel yang sudah ada, maka
- * delete + recreate diwajibkan saat init (aman: belum ada notif yang tampil).
+ * v2.6.7: dioptimalkan agar selalu paling atas & tombol STOP paling mudah dijangkau:
+ * - IMPORTANCE_HIGH + PRIORITY_MAX + CATEGORY_NAVIGATION (ranking tinggi)
+ * - setSortKey — urutan lebih tinggi di antara notif sejenis
+ * - setForegroundServiceBehavior — menandai sebagai notif tingkat layanan
+ * Catatan jujur: Android tidak menjamin posisi absolut #1 (notif telepon selalu
+ * lebih tinggi) — tapi dalam kondisi normal, kombinasi ini menempatkan STOP
+ * di puncak shade.
  */
 class NotifController(private val context: Context) {
 
@@ -30,8 +32,6 @@ class NotifController(private val context: Context) {
 
     init {
         if (Build.VERSION.SDK_INT >= 26) {
-            // Channel lama mungkin terlanjur ada dengan IMPORTANCE_LOW —
-            // hapus dulu agar recreate dengan HIGH benar-benar berlaku.
             try {
                 nm.deleteNotificationChannel(CHANNEL_ID)
             } catch (_: Throwable) { }
@@ -65,8 +65,10 @@ class NotifController(private val context: Context) {
             .setContentText(String.format(Locale.US, "%.6f, %.6f", lat, lng))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
+            .setSortKey("1")                          // ← ranking dalam shade
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(0, "■ STOP", stopIntent)
             .build()
         nm.notify(notifId(target), n)
