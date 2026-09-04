@@ -88,7 +88,8 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // v2.6.4: PlayPanel menerima pusher & mempush sendiri saat toggle
+        // v2.6.4: PlayPanel mem-push sendiri saat toggle
+        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
             pusher = pusher,
@@ -153,6 +154,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
+        chipHandler.post(chipTick)
 
         // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
@@ -172,8 +174,6 @@ class MainActivity : AppCompatActivity() {
         chipHandler.removeCallbacks(chipTick)
     }
 
-    override fun onResume_ignored() { }   // dihapus — placeholder tidak diperlukan
-
     override fun onDestroy() {
         super.onDestroy()
         chainHandler.removeCallbacksAndMessages(null)
@@ -181,6 +181,13 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI per sesi
+     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
