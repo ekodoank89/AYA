@@ -74,7 +74,7 @@
             android:padding="10dp">
 
             <TextView
-                android:id="@+id/tc_name"
+                android:id="@+id/tc_name_gojek"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
@@ -83,7 +83,7 @@
                 android:text="GOJEK — OFF" />
 
             <TextView
-                android:id="@+id/tc_coord"
+                android:id="@+id/tc_coord_gojek"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
@@ -92,7 +92,7 @@
                 android:text="—" />
 
             <TextView
-                android:id="@+id/tc_extra"
+                android:id="@+id/tc_extra_gojek"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#8FD3A0"
@@ -100,7 +100,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Kolom kanan: GPS + tema + zoom -->
+    <!-- Kolom kanan -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
@@ -298,6 +298,40 @@
                 android:background="@drawable/bg_fav_touch"
                 android:contentDescription="Lokasi tersimpan"
                 android:src="@drawable/ic_star_white" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_divider" />
+
+        <!-- JITTER -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="11dp"
+                android:text="@string/jitter_label"
+                android:textColor="@color/label_text"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.125" />
+
+            <ImageButton
+                android:id="@+id/btn_jitter"
+                android:layout_width="64dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="5dp"
+                android:padding="13dp"
+                android:background="@drawable/bg_fav_touch"
+                android:contentDescription="Pengaturan pergerakan titik"
+                android:src="@drawable/ic_tune" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
