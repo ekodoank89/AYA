@@ -17,9 +17,11 @@ import com.aya.doank.core.SpoofTarget
 import java.util.Locale
 
 /**
- * Satu notifikasi per target aktif (id stabil per target).
- * Ongoing (tak bisa di-swipe) — notif hilang = spoofing memang berhenti.
- * Tombol STOP mengirim broadcast ke app sendiri → MainActivity menangani stop.
+ * Satu notifikasi per target aktif (ongoing, tak bisa di-swipe).
+ * v2.6.5: IMPORTANCE_HIGH + PRIORITY_MAX — tampil paling atas di shade
+ * agar tombol ■ STOP selalu mudah dijangkau, tidak tergeser notif lain.
+ * Channel dibuat IMPORTANCE_HIGH → muncul heads-up sekali saat ▶ ditekan
+ * (user melihat langsung bahwa spoofing aktif), lalu tenang (onlyAlertOnce).
  */
 class NotifController(private val context: Context) {
 
@@ -28,7 +30,14 @@ class NotifController(private val context: Context) {
     init {
         if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "AYA Spoofing", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "AYA Spoofing",
+                    NotificationManager.IMPORTANCE_HIGH   // ← atas + heads-up
+                ).apply {
+                    description = "Kendali spoofing AYA"
+                    setShowBadge(false)
+                }
             )
         }
     }
@@ -48,6 +57,8 @@ class NotifController(private val context: Context) {
             .setSmallIcon(R.drawable.ic_stat_aya)
             .setContentTitle("AYA — ${target.label} aktif")
             .setContentText(String.format(Locale.US, "%.6f, %.6f", lat, lng))
+            .setPriority(NotificationCompat.PRIORITY_MAX)   // ← kompatibilitas pre-Oreo
+            .setCategory(NotificationCompat.CATEGORY_NAVIGATION) // kategori navigasi = prioritas tampil
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .addAction(0, "■ STOP", stopIntent)
@@ -59,7 +70,6 @@ class NotifController(private val context: Context) {
 
     private fun notifId(t: SpoofTarget) = NOTIF_ID_BASE + t.id.hashCode().mod(1000)
 
-    /** Receiver tombol ■ di notifikasi — nested class biasa, bukan di dalam companion. */
     class StopReceiver : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             i.getStringExtra("target_id")?.let { onNotifStop?.invoke(it) }
