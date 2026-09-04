@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // Handler untuk chip telemetri (tick 1 dtk)
+    // Handler chip telemetri (tick 1 dtk)
     private val chipHandler = Handler(Looper.getMainLooper())
     private val chipTick = object : Runnable {
         override fun run() {
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -89,7 +89,6 @@ class MainActivity : AppCompatActivity() {
         permissionFlow.onSettled = { nextChainStep() }
 
         // v2.6.4: PlayPanel menerima pusher & mempush sendiri saat toggle
-        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
             pusher = pusher,
@@ -173,16 +172,51 @@ class MainActivity : AppCompatActivity() {
         chipHandler.removeCallbacks(chipTick)
     }
 
-    override fun onResume() {  // ← INI DUPLIKAT — HAPUS SALAH SATU
-        super.onResume()
-        chipHandler.post(chipTick)
-    }
+    override fun onResume_ignored() { }   // dihapus — placeholder tidak diperlukan
 
     override fun onDestroy() {
         super.onDestroy()
         chainHandler.removeCallbacksAndMessages(null)
         chipHandler.removeCallbacks(chipTick)
         if (::map.isInitialized) map.stop()
+    }
+
+    private fun nextChainStep() {
+        when {
+            !permissionFlow.hasPermission() ->
+                beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
+            !permissionFlow.hasBackgroundLocation() ->
+                beginStage("Selalu izinkan") {
+                    permissionFlow.requestBackgroundLocation { nextChainStep() }
+                }
+
+            !notifPerm.isGranted() ->
+                beginStage("Notifikasi") {
+                    notifPerm.requestInChain { nextChainStep() }
+                }
+
+            !permissionFlow.isBatteryUnrestricted() -> {
+                if (!batteryOnceThisSession) {
+                    batteryOnceThisSession = true
+                    permissionFlow.requestBatteryExemption { }
+                }
+            }
+        }
+    }
+
+    private fun beginStage(name: String, request: () -> Unit) {
+        if (name == lastStage) {
+            Toast.makeText(
+                this,
+                "Izin \"$name\" belum aktif — mengulangi permintaan",
+                Toast.LENGTH_SHORT
+            ).show()
+            chainHandler.postDelayed({ request() }, 700)
+        } else {
+            lastStage = name
+            request()
+        }
     }
 
     private fun stopFromNotif(targetId: String) {
