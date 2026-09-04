@@ -7,34 +7,39 @@ import com.aya.doank.R
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.Targets
 import java.util.Locale
+import java.util.Random
+import kotlin.math.cos
+import kotlin.math.sqrt
 
 /**
  * Chip telemetri per-target di manager (kiri-atas).
- * Menampilkan replikasi posisi fake + accuracy + speed + bearing + altitude.
- * Data = simulasi jitter lokal di manager (perkiraan dari titik lock di Prefs).
+ * Menampilkan replikasi posisi fake + accuracy + speed + bearing + altitude,
+ * dihitung dari titik lock (Prefs) dengan rumus jitter yang sama.
+ * Perkiraan di sisi manager — data asli di proses target bisa sedikit berbeda.
  */
 class ChipTelemetry(
     private val activity: Activity,
     private val prefs: Prefs
 ) {
     private data class ChipViews(
-        val root: LinearLayout,
-        val name: TextView,
-        val coord: TextView,
-        val extra: TextView
+        val root: LinearLayout, val name: TextView,
+        val coord: TextView, val extra: TextView
     )
 
-    private class JitterSim(prefs: Prefs, id: String) {
-        val step = prefs.jitterStep(id)
-        val win = prefs.jitterWindowSec(id)
-        val radius = prefs.jitterRadius(id)
-        private val rnd = java.util.Random()
+    /** Simulasi jitter — rumus identik dengan Jitter.kt (clamp vektor). */
+    private class JitterSim(
+        private val prefs: Prefs, private val id: String
+    ) {
+        private val rnd = Random()
         private var oLat = 0.0; private var oLng = 0.0
         private var windowStart = 0L
         private var prevOLat = 0.0; private var prevOLng = 0.0
         private var lastSpeed = 0f; private var lastBearing: Float? = null
 
         fun advance(baseLat: Double, baseLng: Double): Pair<Double, Double> {
+            val step = prefs.jitterStep(id)
+            val win = prefs.jitterWindowSec(id)
+            val radius = prefs.jitterRadius(id)
             val now = System.currentTimeMillis()
             if (now - windowStart >= win * 1000L) {
                 windowStart = now
@@ -47,7 +52,8 @@ class ChipTelemetry(
                 val dist = sqrt(dLatM * dLatM + dLngM * dLngM)
                 if (dist > radius) {
                     val s = radius / dist
-                    oLat = (dLatM * s) / mLat; oLng = (dLngM * s) / mLng
+                    oLat = (dLatM * s) / mLat
+                    oLng = (dLngM * s) / mLng
                 }
                 val mvLat = (oLat - prevOLat) * mLat
                 val mvLng = (oLng - prevOLng) * mLng
@@ -59,13 +65,26 @@ class ChipTelemetry(
             }
             return (baseLat + oLat) to (baseLng + oLng)
         }
+
+        fun currentOffsetMeters(baseLat: Double): Float {
+            val mLat = 111320.0
+            val mLng = 111320.0 * cos(Math.toRadians(baseLat))
+            val dLatM = oLat * mLat; val dLngM = oLng * mLng
+            return sqrt(dLatM * dLatM + dLngM * dLngM).toFloat()
+        }
+        fun currentSpeed(): Float = lastSpeed
+        fun currentBearing(): Float? = lastBearing
     }
 
-    private data class SimState(val sim: JitterSim, val lat: Double, val lng: Double,
-                                val acc: Float, val spd: Float, val brg: Float?, val alt: Double)
+    private data class ChipViews(
+        val root: LinearLayout, val name: TextView,
+        val coord: TextView, val extra: TextView
+    )
+
+    private data class Sim(val jit: JitterSim)
 
     private val chips = mutableMapOf<String, ChipViews>()
-    private val sims = mutableMapOf<String, SimState>()
+    private val sims = mutableMapOf<String, Sim>()
 
     fun bind() {
         fun register(id: String, rootId: Int, nameId: Int, coordId: Int, extraId: Int) {
@@ -76,9 +95,7 @@ class ChipTelemetry(
                 root.findViewById(coordId),
                 root.findViewById(extraId)
             )
-            sims[id] = SimState(prefs, id,
-                prefs.spoofPoint(id)?.first ?: 0.0,
-                prefs.spoofPoint(id)?.second ?: 0.0, 8f, 0f, null, 20.0)
+            sims[id] = Sim(JitterSim(prefs, id))
         }
         register(Targets.GRAB.id,  R.id.chip_grab,  R.id.tc_name, R.id.tc_coord, R.id.tc_extra)
         register(Targets.GOJEK.id, R.id.chip_gojek, R.id.tc_name_gojek, R.id.tc_coord_gojek, R.id.tc_extra_gojek)
@@ -103,15 +120,15 @@ class ChipTelemetry(
             chip.root.alpha = 1f
             chip.name.text = "${t.label} — LIVE"
 
-            val (oLat, oLng) = sim.sim.advance(lock.first, lock.second)
+            val (oLat, oLng) = sim.jit.advance(lock.first, lock.second)
             val lat = lock.first + oLat
             val lng = lock.second + oLng
             chip.coord.text = String.format(Locale.US, "%.6f, %.6f", lat, lng)
 
-            val acc = (4f + sim.currentOffsetMetersSafe() * 1.2f).coerceIn(4f, 12f)
-            val spd = sim.simSpeed()
-            val brg = sim.simBearing()
-            val alt = 20.0 + sim.currentOffsetMetersSafe() * 0.5
+            val acc = (4f + sim.jit.currentOffsetMeters(lock.first) * 1.2f).coerceIn(4f, 12f)
+            val spd = sim.jit.currentSpeed()
+            val brg = sim.jit.currentBearing()
+            val alt = 20.0 + sim.jit.currentOffsetMeters(lock.first) * 0.5
 
             chip.extra.text = String.format(
                 Locale.US,
@@ -119,31 +136,5 @@ class ChipTelemetry(
                 acc, spd, brg?.let { "%.0f".format(it) } ?: "—", alt
             )
         }
-    }
-
-    private fun SimState.currentOffsetMetersSafe(): Float {
-        val mLat = 111320.0
-        val mLng = 111320.0 * cos(Math.toRadians(lat))
-        val dLatM = (simOLat()) * mLat
-        val dLngM = (simOLng()) * mLng
-        return sqrt(dLatM * dLatM + dLngM * dLngM).toFloat()
-    }
-
-    private fun SimState.simOLat(): Double = simOLatInternal()
-    private fun SimState.simOLng(): Double = simOLngInternal()
-    private fun SimState.simSpeed(): Float = simSpeedInternal()
-    private fun SimState.simBearing(): Float? = simBearingInternal()
-
-    // Bridge ke field private JitterSim — dibuat internal agar bisa diakses
-    private fun SimState.simOLatInternal(): Double = simStateOLat(this)
-    private fun SimState.simOLngInternal(): Double = simStateOLng(this)
-    private fun SimState.simSpeedInternal(): Float = simStateSpeed(this)
-    private fun SimState.simBearingInternal(): Float? = simStateBearing(this)
-
-    private companion object Bridge {
-        fun simStateOLat(s: SimState): Double = s.lat * 0 + s.simOffset().first
-        fun simStateOLng(s: SimState): Double = s.simOffset().second
-        fun simStateSpeed(s: SimState): Float = s.simSpd()
-        fun simStateBearing(s: SimState): Float? = s.simBrg()
     }
 }
