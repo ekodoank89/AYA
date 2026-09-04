@@ -18,6 +18,7 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
+import com.aya.doank.ui.ChipTelemetry
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
+    private lateinit var chipTelemetry: ChipTelemetry
 
     // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
@@ -45,6 +47,15 @@ class MainActivity : AppCompatActivity() {
     ) {
         notifPerm.markAsked()
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
+    }
+
+    // Handler chip telemetri (tick 1 dtk)
+    private val chipHandler = Handler(Looper.getMainLooper())
+    private val chipTick = object : Runnable {
+        override fun run() {
+            if (::chipTelemetry.isInitialized) chipTelemetry.onTick()
+            chipHandler.postDelayed(this, 1000L)
+        }
     }
 
     // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
@@ -124,6 +135,10 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
+        // ==== CHIP TELEMETRI (v2.7) ====
+        chipTelemetry = ChipTelemetry(this, prefs)
+        chipTelemetry.bind()
+
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
@@ -132,15 +147,45 @@ class MainActivity : AppCompatActivity() {
         } else {
             nextChainStep()
         }
+
+        // Mulai tick chip telemetri
+        chipHandler.post(chipTick)
     }
 
-    /**
-     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
-     * 1) Lokasi dasar   — ulang hingga granted
-     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
-     * 3) Notifikasi     — ulang hingga granted
-     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
-     */
+    override fun onResume() {
+        super.onResume()
+        if (permissionFlow.hasPermission()) map.ensureBlueDot()
+
+        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
+        // → selesaikan tahap tertunda → rantai evaluasi ulang (double check)
+        permissionFlow.resumePendingBackground { nextChainStep() }
+
+        // Sinkronkan notifikasi dengan state tersimpan
+        Targets.all.forEach { t ->
+            if (prefs.isSpoofActive(t.id)) {
+                prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
+            } else {
+                notifs.hide(t)
+            }
+        }
+
+        // Tick chip langsung jalan (jangan tunggu 1 dtk pertama)
+        chipTelemetry.onTick()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Hentikan tick saat app tidak terlihat — hemat baterai
+        chipHandler.removeCallbacks(chipTick)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        chainHandler.removeCallbacksAndMessages(null)
+        chipHandler.removeCallbacks(chipTick)
+        if (::map.isInitialized) map.stop()
+    }
+
     private fun nextChainStep() {
         when {
             // 1) LOKASI DASAR
@@ -159,7 +204,7 @@ class MainActivity : AppCompatActivity() {
                     notifPerm.requestInChain { nextChainStep() }
                 }
 
-            // 4) BATERAI — sekali per sesi
+            // 4) BATERAI — dialog sistem sekali per sesi, tidak ditagih ulang
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -169,10 +214,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
-     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
-     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
             Toast.makeText(
@@ -181,52 +222,4 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
             chainHandler.postDelayed({ request() }, 700)
-        } else {
-            lastStage = name
-            request()
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (permissionFlow.hasPermission()) map.ensureBlueDot()
-
-        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
-        permissionFlow.resumePendingBackground { nextChainStep() }
-
-        // Sinkronkan notifikasi dengan state tersimpan
-        Targets.all.forEach { t ->
-            if (prefs.isSpoofActive(t.id)) {
-                prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
-            } else {
-                notifs.hide(t)
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        chainHandler.removeCallbacksAndMessages(null)
-        if (::map.isInitialized) map.stop()
-    }
-
-    private fun stopFromNotif(targetId: String) {
-        val t = Targets.byId(targetId)
-        prefs.setSpoofActive(t.id, false)
-        pusher.push(t)
-        playPanel.refresh(t.id)
-        notifs.hide(t)
-        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun announce(target: SpoofTarget, active: Boolean) {
-        val msg = if (active) "${target.label} AKTIF — lock ${map.centerText()} — membuka aplikasi…"
-                  else "${target.label} dihentikan — notif hilang"
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun updateThemeIcon() {
-        findViewById<ImageButton>(R.id.btn_theme)
-            .setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
-    }
-}
+        } else
