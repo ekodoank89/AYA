@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -91,17 +92,15 @@ class MainActivity : AppCompatActivity() {
             centerProvider = { map.currentCenter() }
         ) { target, active ->
             if (active) {
-                val p = prefs.spoofPoint(target.id)
-                if (p != null) notifs.show(target, p.first, p.second)
                 if (!notifs.canNotify()) {
                     notifPerm.ensureBeforePlay { }
                 }
-            } else {
-                notifs.hide(target)
             }
+            refreshNotif()   // ← satu pintu: kumpulkan target aktif → update notif gabungan
             announce(target, active)
         }
 
+        // Tombol ■ di notifikasi → broadcast → stop target terkait
         NotifController.onNotifStop = { targetId ->
             runOnUiThread { stopFromNotif(targetId) }
         }
@@ -113,6 +112,7 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
+        // ==== JITTER ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
+        // ==== CHIP TELEMETRI ====
         chipTelemetry = ChipTelemetry(this, prefs)
         chipTelemetry.bind()
 
@@ -143,18 +144,28 @@ class MainActivity : AppCompatActivity() {
         chipHandler.post(chipTick)
     }
 
+    /**
+     * Satu pintu update notifikasi gabungan:
+     * kumpulkan semua target AKTIF + titik lock-nya → NotifController.update().
+     * Dipanggil dari toggle, stop, dan onResume.
+     */
+    private fun refreshNotif() {
+        val activeList = Targets.all.mapNotNull { t ->
+            if (prefs.isSpoofActive(t.id)) {
+                prefs.spoofPoint(t.id)?.let { t to it }
+            } else null
+        }
+        notifs.update(activeList)
+    }
+
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
         chipHandler.post(chipTick)
+
         permissionFlow.resumePendingBackground { nextChainStep() }
-        Targets.all.forEach { t ->
-            if (prefs.isSpoofActive(t.id)) {
-                prefs.spoofPoint(t.id)?.let { notifs.show(t, it.first, it.second) }
-            } else {
-                notifs.hide(t)
-            }
-        }
+
+        refreshNotif()
     }
 
     override fun onPause() {
@@ -173,14 +184,17 @@ class MainActivity : AppCompatActivity() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
+
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
+
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -209,7 +223,7 @@ class MainActivity : AppCompatActivity() {
         prefs.setSpoofActive(t.id, false)
         pusher.push(t)
         playPanel.refresh(t.id)
-        notifs.hide(t)
+        refreshNotif()
         Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
     }
 
