@@ -77,10 +77,11 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // v2.6.3: playPanel yang push (push dulu SEBELUM app target dibuka) —
-        // MainActivity tidak meng-push ganda di sini.
+        // v2.6.4: PlayPanel menerima pusher & mempush sendiri saat toggle
+        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
+            pusher = pusher,
             centerProvider = { map.currentCenter() }
         ) { target, active ->
             if (active) {
@@ -136,11 +137,9 @@ class MainActivity : AppCompatActivity() {
     /**
      * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
      * 1) Lokasi dasar   — ulang hingga granted
-     * 2) Selalu izinkan — ulang hingga granted (kembali dari Settings dicek onResume)
+     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
      * 3) Notifikasi     — ulang hingga granted
-     * 4) Baterai        — dialog sistem SEKALI (batteryOnceThisSession, tidak ditagih)
-     * FIX: memakai requestBatteryExemption (API PermissionFlow yang ada),
-     * bukan tryBatteryExemptionSilent dari batch lama yang tidak pernah ada di v2.4.2.
+     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
      */
     private fun nextChainStep() {
         when {
@@ -160,7 +159,7 @@ class MainActivity : AppCompatActivity() {
                     notifPerm.requestInChain { nextChainStep() }
                 }
 
-            // 4) BATERAI — dialog sistem sekali per sesi, tidak ditagih ulang
+            // 4) BATERAI — sekali per sesi
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -192,8 +191,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
 
-        // Kembali dari Settings ("Selalu izinkan" / lokasi diblokir)
-        // → selesaikan tahap tertunda → rantai mengevaluasi ulang (double check)
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
 
         // Sinkronkan notifikasi dengan state tersimpan
