@@ -13,18 +13,14 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.aya.doank.R
+import com.aya.doank.core.Targets
 import com.aya.doank.core.SpoofTarget
 import java.util.Locale
 
 /**
- * Satu notifikasi per target aktif (ongoing, tak bisa di-swipe).
- * v2.6.7: dioptimalkan agar selalu paling atas & tombol STOP paling mudah dijangkau:
- * - IMPORTANCE_HIGH + PRIORITY_MAX + CATEGORY_NAVIGATION (ranking tinggi)
- * - setSortKey — urutan lebih tinggi di antara notif sejenis
- * - setForegroundServiceBehavior — menandai sebagai notif tingkat layanan
- * Catatan jujur: Android tidak menjamin posisi absolut #1 (notif telepon selalu
- * lebih tinggi) — tapi dalam kondisi normal, kombinasi ini menempatkan STOP
- * di puncak shade.
+ * Satu notifikasi per target aktif (ongoing, puncak shade).
+ * v2.6.8: notifId & requestCode DETERMINISTIK per target (index di Targets.all)
+ * — menjamin kedua tombol ■ STOP unik & berfungsi terpisah.
  */
 class NotifController(private val context: Context) {
 
@@ -55,8 +51,10 @@ class NotifController(private val context: Context) {
     fun show(target: SpoofTarget, lat: Double, lng: Double) {
         if (!canNotify()) return
         val stopIntent = PendingIntent.getBroadcast(
-            context, target.id.hashCode(),
-            Intent(ACTION_STOP).setPackage(context.packageName).putExtra("target_id", target.id),
+            context,
+            requestCode(target),                    // ← deterministik: 1 utk GRAB, 2 utk GOJEK
+            Intent(ACTION_STOP).setPackage(context.packageName)
+                .putExtra("target_id", target.id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n: Notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -65,10 +63,9 @@ class NotifController(private val context: Context) {
             .setContentText(String.format(Locale.US, "%.6f, %.6f", lat, lng))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
-            .setSortKey("1")                          // ← ranking dalam shade
+            .setSortKey("1")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(0, "■ STOP", stopIntent)
             .build()
         nm.notify(notifId(target), n)
@@ -76,7 +73,13 @@ class NotifController(private val context: Context) {
 
     fun hide(target: SpoofTarget) = nm.cancel(notifId(target))
 
-    private fun notifId(t: SpoofTarget) = NOTIF_ID_BASE + t.id.hashCode().mod(1000)
+    private fun notifId(t: SpoofTarget): Int = NOTIF_ID_BASE + slotIndex(t)
+
+    private fun requestCode(t: SpoofTarget): Int = slotIndex(t) + 1
+
+    /** Slot deterministik per target dari urutan di Targets.all (0,1,2,...) — tanpa hash. */
+    private fun slotIndex(t: SpoofTarget): Int =
+        Targets.all.indexOfFirst { it.id == t.id }
 
     class StopReceiver : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
