@@ -17,14 +17,14 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
+ * Tap nama favorit → onPick(cat, lat, lng, name) → MainActivity memicu play.
  * + Mode input: 📍 Dari Pin / ⌨ Manual (kolom lat/lng vertikal).
- * Tap nama favorit → dialog konfirmasi → PLAY = langsung aktif di koordinat favorit.
  */
 class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onPlayFromFavorite: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onPick: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -64,7 +64,6 @@ class FavoritesController(
             lngEt.error = null
         }
 
-        // ===== render — dideklarasikan SEBELUM setCat yang memanggilnya =====
         fun render() {
             val favs = store.all(cat)
             empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
@@ -80,7 +79,7 @@ class FavoritesController(
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
                 item.setOnClickListener {
                     dialog?.dismiss()
-                    onPick(LatLng(f.lat, f.lng), f.name)
+                    onPick(cat, f.lat, f.lng, f.name)
                 }
                 list.addView(item)
             }
@@ -187,7 +186,6 @@ class FavoritesController(
         render()
     }
 
-    // ===== EDIT: nama + koordinat =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -231,7 +229,6 @@ class FavoritesController(
         d.show()
     }
 
-    // ===== HAPUS: konfirmasi =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
