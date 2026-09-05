@@ -18,8 +18,9 @@ import kotlin.math.sqrt
 
 /**
  * Pembaca config SATU target. Rantai: push → remote → xsp.
- * v2.7: + SPEED, BEARING, ALTITUDE dinamis dari offset jitter —
- * semuanya turunan dari satu set kepala (offset per jendela) → konsisten.
+ * v2.7: jitter 3-parameter dinamis (step/window/RADIUS per target).
+ * v2.9: mengekspos onMarkerState / onMarkerRemoved / onRelock callbacks
+ *       agar MainActivity bisa menampilkan marker visual per target.
  */
 class SpoofConfig(private val targetId: String) {
 
@@ -44,6 +45,11 @@ class SpoofConfig(private val targetId: String) {
 
     private val xsp by lazy { XSharedPreferences(MODULE_PACKAGE, Keys.PREFS_NAME) }
 
+    // v2.9: callbacks marker untuk MainActivity
+    var onMarkerState: ((lat: Double, lng: Double) -> Unit)? = null
+    var onMarkerRemoved: (() -> Unit)? = null
+    var onRelock: ((lat: Double, lng: Double) -> Unit)? = null
+
     init {
         refresh(now = System.currentTimeMillis(), force = true)
         XposedBridge.log(
@@ -54,32 +60,6 @@ class SpoofConfig(private val targetId: String) {
 
     fun latitude(): Double? = jittered()?.first
     fun longitude(): Double? = jittered()?.second
-    fun accuracy(): Float {
-        refresh(System.currentTimeMillis())
-        if (!active) return 8f
-        val off = jitter.currentOffsetMeters()
-        return (4f + off * 1.2f).coerceIn(4f, 12f)
-    }
-
-    // ===== v2.7: SPEED, BEARING, ALTITUDE =====
-    fun speedMps(): Float {
-        refresh(System.currentTimeMillis())
-        if (!active) return 0f
-        return jitter.currentSpeedMps()
-    }
-
-    fun bearingDeg(): Float? {
-        refresh(System.currentTimeMillis())
-        if (!active) return null
-        return jitter.currentBearingDeg()   // null bila gerak nyaris nol
-    }
-
-    fun altitudeM(): Double {
-        refresh(System.currentTimeMillis())
-        if (!active) return 20.0
-        // Baseline + drift pelan mengikuti offset (hiasan — tidak melompat)
-        return 20.0 + jitter.currentOffsetMeters() * 0.5
-    }
 
     private fun jittered(): Pair<Double, Double>? {
         refresh(System.currentTimeMillis())
@@ -121,8 +101,17 @@ class SpoofConfig(private val targetId: String) {
         if (changed) jitter.onBaseChanged(la)
         if (active != lastLoggedActive) {
             lastLoggedActive = active
-            if (active) XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $la, $ln")
-            else XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
+            if (active) {
+                XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $la, $ln")
+                onMarkerState?.invoke(la, ln)
+            } else {
+                XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
+                onMarkerRemoved?.invoke()
+            }
+        }
+        // Re-lock: jika titik berganti saat masih aktif, update posisi marker
+        if (changed && active) {
+            onRelock?.invoke(la, ln)
         }
     }
 
@@ -222,8 +211,8 @@ class SpoofConfig(private val targetId: String) {
     }
 
     /**
-     * Random-walk GPS + clamp vektor.
-     * v2.7: menyimpan prevOffset → speed (m/s) & bearing (derajat) dihitung dari Δoffset.
+     * Random-walk GPS + clamp vektor (lingkaran sempurna).
+     * v2.7: langkah & jendela dari config dinamis per target.
      */
     private inner class Jitter {
         private val rnd = Random()
@@ -232,43 +221,20 @@ class SpoofConfig(private val targetId: String) {
         private var windowStart = 0L
         private var baseRef = Double.NaN
 
-        private var prevOLat = 0.0
-        private var prevOLng = 0.0
-        private var lastSpeed = 0f
-        private var lastBearing: Float? = null
-
         fun onBaseChanged(la: Double) {
             if (la != baseRef) {
-                oLat = 0.0; oLng = 0.0
-                prevOLat = 0.0; prevOLng = 0.0
+                oLat = 0.0
+                oLng = 0.0
                 baseRef = la
-                lastSpeed = 0f; lastBearing = null
             }
         }
-
-        /** Magnitude offset saat ini (meter) — tanpa advance. */
-        fun currentOffsetMeters(): Float {
-            val mLat = 111320.0
-            val mLng = 111320.0 * cos(Math.toRadians(baseLat.takeIf { !it.isNaN() } ?: 0.0))
-            val dLatM = oLat * mLat
-            val dLngM = oLng * mLng
-            return sqrt(dLatM * dLatM + dLngM * dLngM).toFloat()
-        }
-
-        /** Speed m/s — konsisten dengan Δoffset antar jendela. */
-        fun currentSpeedMps(): Float = lastSpeed
-
-        /** Bearing derajat (0-359), null bila gerak nyaris nol. */
-        fun currentBearingDeg(): Float? = lastBearing
 
         fun applyTo(baseLat: Double, baseLng: Double): Pair<Double, Double> {
             val now = System.currentTimeMillis()
             if (now - windowStart >= jWin * 1000L) {
-                val dt = (now - windowStart) / 1000.0
                 windowStart = now
                 val mLat = 111320.0
                 val mLng = 111320.0 * cos(Math.toRadians(baseLat))
-                prevOLat = oLat; prevOLng = oLng
                 oLat += ((rnd.nextDouble() - 0.5) * jStep) / mLat
                 oLng += ((rnd.nextDouble() - 0.5) * jStep) / mLng
 
@@ -280,16 +246,6 @@ class SpoofConfig(private val targetId: String) {
                     oLat = (dLatM * scale) / mLat
                     oLng = (dLngM * scale) / mLng
                 }
-
-                // Speed & bearing dari Δoffset jendela
-                val moveLatM = (oLat - prevOLat) * mLat
-                val moveLngM = (oLng - prevOLng) * mLng
-                val moveDist = sqrt(moveLatM * moveLatM + moveLngM * moveLngM)
-                lastSpeed = (moveDist / jWin).toFloat()
-                lastBearing = if (moveDist > 0.2) {
-                    val rad = Math.atan2(moveLngM, moveLatM)
-                    ((Math.toDegrees(rad) + 360.0) % 360.0).toFloat()
-                } else null
             }
             return (baseLat + oLat) to (baseLng + oLng)
         }
