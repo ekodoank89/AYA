@@ -1,8 +1,11 @@
 <resources>
     <style name="Theme.AYA" parent="Theme.AppCompat.Light.NoActionBar" />
 
+    <!-- Background dialog SOLID (bg_dialog_card) — berlaku untuk SEMUA AlertDialog
+         yang memakai Theme_AYA_Dialog, termasuk yang dibangun tanpa layout custom.
+         Tidak perlu lagi set window background per-dialog. -->
     <style name="Theme.AYA.Dialog" parent="Theme.AppCompat.Dialog">
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">@drawable/bg_dialog_card</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 </resources>
