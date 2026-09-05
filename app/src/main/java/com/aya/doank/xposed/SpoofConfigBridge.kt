@@ -19,8 +19,6 @@ import kotlin.math.sqrt
 /**
  * Pembaca config SATU target. Rantai: push → remote → xsp.
  * v2.9.2: jitter 3-parameter dinamis (step/window/RADIUS per target).
- * v2.9.2: callback marker melalui SpoofConfigBridge (bukan langsung dari
- * hook — hook berjalan di proses target, callback di-resolve via bridge).
  */
 class SpoofConfig(private val targetId: String) {
 
@@ -172,14 +170,9 @@ class SpoofConfig(private val targetId: String) {
         return try {
             xsp.reload()
             applyJitter(
-                xsp.getString(Keys.jitStepKey(targetId), null)?.toFloatOrNull(),
-                xsp.getString(Keys.jitWinKey(targetId), null)?.toIntOrNull(),
-                xsp.getString(Keys.jitRadiusKey(targetId), null)?.toFloatOrNull()
-            )
-            applyState(
                 xsp.getBoolean(Keys.spoofActive(targetId), false),
-                xsp.getString(Keys.jitStepKey(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
-                xsp.getString(Keys.spoofLngKey(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
+                xsp.getString(Keys.spoofLat(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
+                xsp.getString(Keys.spoofLng(targetId), null)?.toDoubleOrNull() ?: Double.NaN,
                 TRANSPORT_XSP
             )
             true
@@ -196,10 +189,6 @@ class SpoofConfig(private val targetId: String) {
         }
     }
 
-    /**
-     * Random-walk GPS + clamp vektor (lingkaran sempurna).
-     * v2.7: langkah & jendela dari config dinamis per target.
-     */
     private inner class Jitter {
         private val rnd = Random()
         private var oLat = 0.0
