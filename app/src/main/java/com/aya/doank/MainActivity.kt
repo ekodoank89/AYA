@@ -65,6 +65,9 @@ class MainActivity : AppCompatActivity() {
             this,
             FavoritesStore(this),
             centerProvider = { map.currentCenter() },
+            onPlay = { catId, lat, lng, name ->
+                playFromFavorite(catId, lat, lng, name)
+            },
             onPick = { catId, lat, lng, name ->
                 playFromFavorite(catId, lat, lng, name)
             }
@@ -93,7 +96,7 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
-        // ==== JITTER (dari hook) — callback marker ====
+        // ==== MARKER CALLBACKS ====
         com.aya.doank.xposed.SpoofConfigBridge.onMarkerState = { targetId, lat, lng ->
             runOnUiThread {
                 val t = Targets.byId(targetId)
