@@ -17,8 +17,8 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * Tap nama favorit → onPick(cat, lat, lng, name) → MainActivity memicu play.
- * + Mode input: 📍 Dari Pin / ⌨ Manual (kolom lat/lng vertikal).
+ * v2.8.2: background dialog dikendalikan dari TEMA (Theme.AYA.Dialog → bg_dialog_card)
+ * — semua dialog otomatis solid, tidak ada lagi transparan.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -79,7 +79,7 @@ class FavoritesController(
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
                 item.setOnClickListener {
                     dialog?.dismiss()
-                    onPick(cat, f.lat, f.lng, f.name)
+                    onPick(LatLng(f.lat, f.lng), f.name)
                 }
                 list.addView(item)
             }
@@ -180,12 +180,12 @@ class FavoritesController(
         dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
-        dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
         widen(dialog!!)
         dialog?.show()
         render()
     }
 
+    // ===== EDIT =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -200,7 +200,8 @@ class FavoritesController(
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)   // kartu solid
+        widen(d)   // lebar 92%
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -222,16 +223,17 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain."
+                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
                 errTv.visibility = View.VISIBLE
             }
         }
         d.show()
     }
 
+    // ===== HAPUS: konfirmasi (kartu solid dari tema) =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+        AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setTitle("Hapus lokasi?")
             .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
             .setPositiveButton("Hapus") { _, _ ->
