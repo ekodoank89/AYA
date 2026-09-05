@@ -19,8 +19,10 @@ object Keys {
     fun jitWinKey(id: String) = K_WIN.format(id)
     fun jitRadiusKey(id: String) = K_RADIUS.format(id)
 
-    // ==== Favorit ====
-    const val FAVORITES = "favorites_json"
+    // ==== Favorit v2.8: PER KATEGORI (grab-driver / gojek-driver) ====
+    private const val K_FAV = "favs_%s_json"
+
+    fun favoritesKey(catId: String) = K_FAV.format(catId)
 
     // ==== Schema spoof — DIBACA HOOK di proses target. Jangan diubah sembarangan! ====
     private const val KEY_ACTIVE_TEMPLATE = "spoof_%s_active"
