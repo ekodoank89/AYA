@@ -25,6 +25,7 @@ import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
+import com.aya.doank.ui.TargetMarkerController
 import com.google.android.gms.maps.SupportMapFragment
 
 class MainActivity : AppCompatActivity() {
@@ -38,8 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
+    private lateinit var targetMarker: TargetMarkerController
 
-    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -47,7 +48,6 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
-    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -65,9 +65,6 @@ class MainActivity : AppCompatActivity() {
             this,
             FavoritesStore(this),
             centerProvider = { map.currentCenter() },
-            onPlay = { catId, lat, lng, name ->
-                playFromFavorite(catId, lat, lng, name)
-            },
             onPick = { catId, lat, lng, name ->
                 playFromFavorite(catId, lat, lng, name)
             }
@@ -94,6 +91,25 @@ class MainActivity : AppCompatActivity() {
             }
             refreshNotif()
             announce(target, active)
+        }
+
+        // ==== JITTER (dari hook) — callback marker ====
+        com.aya.doank.xposed.SpoofConfigBridge.onMarkerState = { targetId, lat, lng ->
+            runOnUiThread {
+                val t = Targets.byId(targetId)
+                val hue = if (targetId == Targets.GRAB.id) 150f else 100f
+                targetMarker.show(targetId, t.label, hue, lat, lng)
+            }
+        }
+        com.aya.doank.xposed.SpoofConfigBridge.onMarkerRemoved = { targetId ->
+            runOnUiThread { targetMarker.remove(targetId) }
+        }
+        com.aya.doank.xposed.SpoofConfigBridge.onRelock = { targetId, lat, lng ->
+            runOnUiThread {
+                val t = Targets.byId(targetId)
+                targetMarker.show(targetId, t.label,
+                    if (targetId == Targets.GRAB.id) 150f else 100f, lat, lng)
+            }
         }
 
         favorites.bind(R.id.btn_fav)
@@ -147,6 +163,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        chainHandler.removeCallbacksAndMessages(null)
         if (::map.isInitialized) map.stop()
     }
 
