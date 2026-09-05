@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // PlayPanel mem-push sendiri saat toggle
+        // v2.6.4: PlayPanel mem-push sendiri saat toggle
         // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
             target.packageNames.firstOrNull() ?: return
         )
         if (launch != null) {
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launch)
         }
 
