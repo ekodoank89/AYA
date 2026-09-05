@@ -18,7 +18,9 @@ import java.util.Locale
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
  * Segmen kategori mengendalikan: form simpan, daftar, edit, hapus.
- * Semua operasi FavoritesStore memakai catId (grab-driver / gojek-driver).
+ * v2.8.1 FIX: render() dideklarasikan SEBELUM setCat() yang memanggilnya
+ * (local function Kotlin wajib dideklarasi sebelum pemanggil).
+ * + Mode input: 📍 Dari Pin / ⌨ Manual (kolom lat/lng vertikal).
  */
 class FavoritesController(
     private val activity: Activity,
@@ -46,6 +48,8 @@ class FavoritesController(
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
         val catGojek  = v.findViewById<TextView>(R.id.cat_gojek)
+        val modePin   = v.findViewById<TextView>(R.id.mode_pin)
+        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
         val nameEt    = v.findViewById<EditText>(R.id.fav_name)
         val latlngRow = v.findViewById<View>(R.id.latlng_row)
         val latEt     = v.findViewById<EditText>(R.id.in_lat)
@@ -53,51 +57,17 @@ class FavoritesController(
         val errTv     = v.findViewById<TextView>(R.id.fav_err)
         val list      = v.findViewById<LinearLayout>(R.id.fav_list)
         val empty     = v.findViewById<TextView>(R.id.fav_empty)
+
         var cat = Targets.GRAB.id
+        var mode = "pin"
 
         fun clearErr() {
             errTv.visibility = View.GONE
-            latEt.error = null; lngEt.error = null
+            latEt.error = null
+            lngEt.error = null
         }
 
-        fun setCat(c: String) {
-            cat = c
-            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
-            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
-            catGrab.setBackgroundResource(if (c == Targets.GRAB.id) sel else unsel)
-            catGrab.setTextColor(if (c == Targets.GRAB.id) on else off)
-            catGojek.setBackgroundResource(if (c == Targets.GOJEK.id) sel else unsel)
-            catGojek.setTextColor(if (c == Targets.GOJEK.id) on else off)
-            clearErr()
-            render()
-        }
-        catGrab.setOnClickListener { setCat(Targets.GRAB.id) }
-        catGojek.setOnClickListener { setCat(Targets.GOJEK.id) }
-
-        fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
-            clearErr()
-            val lat = la.text.toString().replace(',', '.').toDoubleOrNull()
-            val lng = ln.text.toString().replace(',', '.').toDoubleOrNull()
-            if (lat == null || lng == null) {
-                errTv.text = "Latitude & Longitude wajib angka desimal."
-                errTv.visibility = View.VISIBLE
-                if (lat == null) la.error = " "
-                if (lng == null) lngEt.error = " "
-                return null
-            }
-            if (lat < -90 || lat > 90) {
-                errTv.text = "Latitude harus antara -90 sampai 90."
-                errTv.visibility = View.VISIBLE; la.error = " "
-                return null
-            }
-            if (lng < -180 || lng > 180) {
-                errTv.text = "Longitude harus antara -180 sampai 180."
-                errTv.visibility = View.VISIBLE; ln.error = " "
-                return null
-            }
-            return lat to lng
-        }
-
+        // ===== render: DIDEKLARASI SEBELUM setCat yang memanggilnya =====
         fun render() {
             val favs = store.all(cat)
             empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
@@ -119,6 +89,61 @@ class FavoritesController(
             }
         }
 
+        fun setCat(c: String) {
+            cat = c
+            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
+            catGrab.setBackgroundResource(if (c == Targets.GRAB.id) sel else unsel)
+            catGrab.setTextColor(if (c == Targets.GRAB.id) on else off)
+            catGojek.setBackgroundResource(if (c == Targets.GOJEK.id) sel else unsel)
+            catGojek.setTextColor(if (c == Targets.GOJEK.id) on else off)
+            clearErr()
+            render()
+        }
+        catGrab.setOnClickListener { setCat(Targets.GRAB.id) }
+        catGojek.setOnClickListener { setCat(Targets.GOJEK.id) }
+
+        // ===== Mode input =====
+        fun setMode(m: String) {
+            mode = m
+            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
+            modePin.setBackgroundResource(if (m == "pin") sel else unsel)
+            modePin.setTextColor(if (m == "pin") on else off)
+            modeManual.setBackgroundResource(if (m == "manual") sel else unsel)
+            modeManual.setTextColor(if (m == "manual") on else off)
+            latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
+            clearErr()
+        }
+        modePin.setOnClickListener { setMode("pin") }
+        modeManual.setOnClickListener { setMode("manual") }
+
+        fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
+            clearErr()
+            val lat = la.text.toString().replace(',', '.').toDoubleOrNull()
+            val lng = ln.text.toString().replace(',', '.').toDoubleOrNull()
+            if (lat == null || lng == null) {
+                errTv.text = "Latitude dan Longitude wajib angka desimal."
+                errTv.visibility = View.VISIBLE
+                if (lat == null) la.error = " "
+                if (lng == null) ln.error = " "
+                return null
+            }
+            if (lat < -90 || lat > 90) {
+                errTv.text = "Latitude harus antara -90 sampai 90."
+                errTv.visibility = View.VISIBLE
+                la.error = " "
+                return null
+            }
+            if (lng < -180 || lng > 180) {
+                errTv.text = "Longitude harus antara -180 sampai 180."
+                errTv.visibility = View.VISIBLE
+                ln.error = " "
+                return null
+            }
+            return lat to lng
+        }
+
         v.findViewById<View>(R.id.fav_add).setOnClickListener {
             val name = nameEt.text.toString().trim()
             if (name.isEmpty()) {
@@ -128,19 +153,21 @@ class FavoritesController(
             val lat: Double
             val lng: Double
             val src: String
-            if (latlngRow.visibility == View.VISIBLE) {
-                val p = validate(latEt, lngEt) ?: return@setOnClickListener
-                lat = p.first; lng = p.second; src = "manual"
-            } else {
+            if (mode == "pin") {
                 val c = centerProvider()
                 if (c == null) {
                     Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 lat = c.latitude; lng = c.longitude; src = "pin"
+            } else {
+                val p = validate(latEt, lngEt) ?: return@setOnClickListener
+                lat = p.first; lng = p.second; src = "manual"
             }
             if (store.add(cat, name, lat, lng, src)) {
-                nameEt.text.clear(); latEt.text.clear(); lngEt.text.clear()
+                nameEt.text.clear()
+                latEt.text.clear()
+                lngEt.text.clear()
                 render()
             } else {
                 Toast.makeText(activity, "Nama sudah dipakai di kategori ini", Toast.LENGTH_SHORT).show()
@@ -193,7 +220,7 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain."
+                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
                 errTv.visibility = View.VISIBLE
             }
         }
