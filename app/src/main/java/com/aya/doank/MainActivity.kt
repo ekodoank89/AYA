@@ -18,7 +18,6 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
-import com.aya.doank.ui.ChipTelemetry
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
@@ -39,8 +38,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
-    private lateinit var chipTelemetry: ChipTelemetry
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -48,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -64,11 +64,11 @@ class MainActivity : AppCompatActivity() {
         favorites = FavoritesController(
             this,
             FavoritesStore(this),
-            centerProvider = { map.currentCenter() }
-        ) { latLng, name ->
-            map.flyTo(latLng)
-            Toast.makeText(this, "Pin → $name. Tekan ▶ untuk lock.", Toast.LENGTH_SHORT).show()
-        }
+            centerProvider = { map.currentCenter() },
+            onPick = { catId, lat, lng, name ->
+                playFromFavorite(catId, lat, lng, name)
+            }
+        )
 
         permissionFlow = PermissionFlow(this, prefs) {
             map.ensureBlueDot()
@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // v2.6.4: PlayPanel mem-push sendiri saat toggle
+        // PlayPanel mem-push sendiri saat toggle
         // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
@@ -111,10 +111,6 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
-        // ==== CHIP TELEMETRI ====
-        chipTelemetry = ChipTelemetry(this, prefs)
-        chipTelemetry.bind()
-
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
@@ -123,38 +119,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             nextChainStep()
         }
-
-        chipHandler.post(chipTick)
     }
 
-    private val chipHandler = Handler(Looper.getMainLooper())
-    private val chipTick = object : Runnable {
-        override fun run() {
-            if (::chipTelemetry.isInitialized) chipTelemetry.onTick()
-            chipHandler.postDelayed(this, 1000L)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (permissionFlow.hasPermission()) map.ensureBlueDot()
-        chipHandler.post(chipTick)
-        permissionFlow.resumePendingBackground { nextChainStep() }
-        refreshNotif()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        chipHandler.removeCallbacks(chipTick)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        chainHandler.removeCallbacksAndMessages(null)
-        chipHandler.removeCallbacks(chipTick)
-        if (::map.isInitialized) map.stop()
-    }
-
+    /** Satu pintu update notifikasi indikator (kumpulkan target aktif → update). */
     private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
             if (prefs.isSpoofActive(t.id)) {
@@ -164,18 +131,44 @@ class MainActivity : AppCompatActivity() {
         notifs.update(activeList)
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (permissionFlow.hasPermission()) map.ensureBlueDot()
+
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
+        permissionFlow.resumePendingBackground { nextChainStep() }
+
+        // Notifikasi indikator sinkron dengan state tersimpan
+        refreshNotif()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::map.isInitialized) map.stop()
+    }
+
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
+     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
+
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
+
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -185,14 +178,44 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
+     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
-            Toast.makeText(this, "Izin \"$name\" belum aktif — mengulangi permintaan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Izin \"$name\" belum aktif — mengulangi permintaan",
+                Toast.LENGTH_SHORT
+            ).show()
             chainHandler.postDelayed({ request() }, 700)
         } else {
             lastStage = name
             request()
         }
+    }
+
+    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
+    private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
+        val target = Targets.byId(catId)
+        prefs.setSpoofPoint(catId, lat, lng)
+        prefs.setSpoofActive(catId, true)
+        pusher.push(target)
+        playPanel.refresh(catId)
+        refreshNotif()
+
+        val launch = packageManager.getLaunchIntentForPackage(
+            target.packageNames.firstOrNull() ?: return
+        )
+        if (launch != null) {
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launch)
+        }
+
+        Toast.makeText(this,
+            "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
+            Toast.LENGTH_SHORT).show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
