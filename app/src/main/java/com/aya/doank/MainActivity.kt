@@ -2,7 +2,6 @@ package com.aya.doank
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
@@ -19,6 +18,7 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
+import com.aya.doank.ui.ChipTelemetry
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
+    private lateinit var chipTelemetry: ChipTelemetry
 
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -107,6 +108,9 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
+        chipTelemetry = ChipTelemetry(this, prefs)
+        chipTelemetry.bind()
+
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
@@ -115,30 +119,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             nextChainStep()
         }
-    }
 
-    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
-    private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
-        val target = Targets.byId(catId)
-        prefs.setSpoofPoint(catId, lat, lng)
-        prefs.setSpoofActive(catId, true)
-        pusher.push(target)
-        playPanel.refresh(catId)
-
-        if (notifs.canNotify()) {
-            notifs.show(target, lat, lng)
-        }
-
-        // Buka app target
-        val launch = packageManager.getLaunchIntentForPackage(target.packageNames.firstOrNull() ?: return)
-        if (launch != null) {
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(launch)
-        }
-
-        Toast.makeText(this,
-            "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
-            Toast.LENGTH_SHORT).show()
+        chipHandler.post(chipTick)
     }
 
     private fun refreshNotif() {
@@ -153,12 +135,20 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
+        chipHandler.post(chipTick)
         permissionFlow.resumePendingBackground { nextChainStep() }
         refreshNotif()
     }
 
+    override fun onPause() {
+        super.onPause()
+        chipHandler.removeCallbacks(chipTick)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        chainHandler.removeCallbacksAndMessages(null)
+        chipHandler.removeCallbacks(chipTick)
         if (::map.isInitialized) map.stop()
     }
 
@@ -191,6 +181,36 @@ class MainActivity : AppCompatActivity() {
             lastStage = name
             request()
         }
+    }
+
+    private fun stopFromNotif(targetId: String) {
+        val t = Targets.byId(targetId)
+        prefs.setSpoofActive(t.id, false)
+        pusher.push(t)
+        playPanel.refresh(t.id)
+        refreshNotif()
+        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
+        val target = Targets.byId(catId)
+        prefs.setSpoofPoint(catId, lat, lng)
+        prefs.setSpoofActive(catId, true)
+        pusher.push(target)
+        playPanel.refresh(catId)
+        refreshNotif()
+
+        val launch = packageManager.getLaunchIntentForPackage(
+            target.packageNames.firstOrNull() ?: return
+        )
+        if (launch != null) {
+            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launch)
+        }
+
+        Toast.makeText(this,
+            "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
+            Toast.LENGTH_SHORT).show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
