@@ -19,7 +19,7 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Kolom kanan: GPS + tema -->
+    <!-- Kolom kanan: zoom + GPS + tema -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
@@ -28,6 +28,36 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="180dp"
         android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btn_zoom_in"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:elevation="6dp"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="monospace"
+            android:text="+" />
+
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
+
+        <Button
+            android:id="@+id/btn_zoom_out"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:elevation="6dp"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="monospace"
+            android:text="−" />
+
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
 
         <ImageButton
             android:id="@+id/btn_my_location"
@@ -52,13 +82,12 @@
             android:src="@drawable/ic_moon" />
     </LinearLayout>
 
-    <!-- ===== KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER (merendam) ===== -->
+    <!-- KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER -->
     <LinearLayout
         android:id="@+id/bottom_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:translationY="8dp"
         android:orientation="horizontal"
         android:gravity="center"
         android:paddingTop="14dp"
@@ -209,4 +238,5 @@
         </LinearLayout>
 
     </LinearLayout>
+
 </FrameLayout>
