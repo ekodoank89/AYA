@@ -168,25 +168,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
+        private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
-        prefs.setSpoofPoint(catId, lat, lng)
-        prefs.setSpoofActive(catId, true)
-        pusher.push(target)
-        playPanel.refresh(catId)
-        refreshNotif()
+        val label = if (catId == Targets.GRAB.id) "GRAB" else "GOJEK"
 
-        val launch = packageManager.getLaunchIntentForPackage(
-            target.packageNames.firstOrNull() ?: return
-        )
-        if (launch != null) {
-            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(launch)
-        }
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"$name\"?\n\n" +
+                String.format(java.util.Locale.US, "%.6f, %.6f", lat, lng))
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                prefs.setSpoofPoint(catId, lat, lng)
+                prefs.setSpoofActive(catId, true)
+                pusher.push(target)
+                playPanel.refresh(catId)
+                refreshNotif()
 
-        Toast.makeText(this,
-            "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
-            Toast.LENGTH_SHORT).show()
+                val launch = packageManager.getLaunchIntentForPackage(
+                    target.packageNames.firstOrNull() ?: return@setPositiveButton
+                )
+                if (launch != null) {
+                    launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(launch)
+                }
+
+                Toast.makeText(this,
+                    "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
+                    Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
