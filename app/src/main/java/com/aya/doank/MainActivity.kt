@@ -1,7 +1,7 @@
 package com.aya.doank
 
 import android.Manifest
-import android.content.Context
+import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
@@ -18,7 +18,6 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
-import com.aya.doank.ui.ChipTelemetry
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
@@ -39,7 +38,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
-    private lateinit var chipTelemetry: ChipTelemetry
 
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -108,9 +106,6 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
-        chipTelemetry = ChipTelemetry(this, prefs)
-        chipTelemetry.bind()
-
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
@@ -120,7 +115,14 @@ class MainActivity : AppCompatActivity() {
             nextChainStep()
         }
 
-        chipHandler.post(chipTick)
+        // Auto-launch: push ulang setelah app target terbuka (1s/3s/6s)
+        Targets.all.forEach { t ->
+            if (prefs.isSpoofActive(t.id)) {
+                listOf(1000L, 3000L, 6000L).forEach { d ->
+                    Handler(Looper.getMainLooper()).postDelayed({ pusher.push(t) }, d)
+                }
+            }
+        }
     }
 
     private fun refreshNotif() {
@@ -135,20 +137,12 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
-        chipHandler.post(chipTick)
         permissionFlow.resumePendingBackground { nextChainStep() }
         refreshNotif()
     }
 
-    override fun onPause() {
-        super.onPause()
-        chipHandler.removeCallbacks(chipTick)
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        chainHandler.removeCallbacksAndMessages(null)
-        chipHandler.removeCallbacks(chipTick)
         if (::map.isInitialized) map.stop()
     }
 
@@ -181,15 +175,6 @@ class MainActivity : AppCompatActivity() {
             lastStage = name
             request()
         }
-    }
-
-    private fun stopFromNotif(targetId: String) {
-        val t = Targets.byId(targetId)
-        prefs.setSpoofActive(t.id, false)
-        pusher.push(t)
-        playPanel.refresh(t.id)
-        refreshNotif()
-        Toast.makeText(this, "${t.label} dihentikan dari notifikasi", Toast.LENGTH_SHORT).show()
     }
 
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
