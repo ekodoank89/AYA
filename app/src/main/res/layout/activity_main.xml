@@ -19,14 +19,14 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Kolom kanan: GPS + tema + zoom -->
+    <!-- Kolom kanan: GPS + tema -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="28dp"
+        android:layout_marginBottom="180dp"
         android:orientation="vertical">
 
         <ImageButton
@@ -50,44 +50,15 @@
             android:padding="11dp"
             android:contentDescription="Ganti tema peta"
             android:src="@drawable/ic_moon" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <Button
-            android:id="@+id/btn_zoom_in"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:elevation="6dp"
-            android:textSize="22sp"
-            android:textColor="#212121"
-            android:fontFamily="monospace"
-            android:text="+" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <Button
-            android:id="@+id/btn_zoom_out"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:elevation="6dp"
-            android:textSize="22sp"
-            android:textColor="#212121"
-            android:fontFamily="monospace"
-            android:text="−" />
     </LinearLayout>
 
-    <!-- KONTAINER HORIZONTAL BAWAH: GRAB | GOJEK | FAVORIT | JITTER -->
+    <!-- ===== KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER (merendam) ===== -->
     <LinearLayout
         android:id="@+id/bottom_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:translationY="8dp"
         android:orientation="horizontal"
         android:gravity="center"
         android:paddingTop="14dp"
@@ -238,5 +209,4 @@
         </LinearLayout>
 
     </LinearLayout>
-
 </FrameLayout>
