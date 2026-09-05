@@ -17,9 +17,10 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * v2.8.2: tap nama favorit → onPick(cat, lat, lng, name) → MainActivity
- * menampilkan konfirmasi → play target terkait.
- * Semua dialog solid via Theme.AYA.Dialog (bg_dialog_card).
+ * Tap nama favorit → dialog konfirmasi play → PLAY = langsung aktif
+ * di koordinat favorit sesuai kategorinya.
+ * v2.8.2: tombol PLAY di dialog konfirmasi berwarna HIJAU
+ * (senada sistem warna: hijau = jalan/confirm).
  */
 class FavoritesController(
     private val activity: Activity,
@@ -81,8 +82,7 @@ class FavoritesController(
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
                 item.setOnClickListener {
-                    dialog?.dismiss()
-                    onPick(cat, f.lat, f.lng, f.name)   // ← PERBAIKAN: 4 parameter sesuai konstruktor
+                    showPlayConfirm(cat, i)
                 }
                 list.addView(item)
             }
@@ -190,7 +190,25 @@ class FavoritesController(
         render()
     }
 
-    // ===== EDIT: nama + koordinat =====
+    // ===== KONFIRMASI PLAY dari favorit (tombol PLAY hijau) =====
+    private fun showPlayConfirm(cat: String, i: Int) {
+        val f = store.all(cat).getOrNull(i) ?: return
+        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"${f.name}\"?\n\n" +
+                String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng))
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                onPick(cat, f.lat, f.lng, f.name)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+        // Warna tombol: hijau utk PLAY (jalan/confirm), abu utk Batal (netral)
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
+        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
+    }
+
+    // ===== EDIT =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -249,7 +267,6 @@ class FavoritesController(
             .show()
     }
 
-    /** Render ulang dialog utama bila sedang terbuka — tutup yang lama dulu. */
     private fun refreshDialogIfOpen() {
         if (dialog?.isShowing == true) {
             dialog?.dismiss()
