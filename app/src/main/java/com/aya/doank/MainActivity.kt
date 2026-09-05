@@ -18,6 +18,7 @@ import com.aya.doank.core.FavoritesStore
 import com.aya.doank.core.Prefs
 import com.aya.doank.core.SpoofTarget
 import com.aya.doank.core.Targets
+import com.aya.doank.ui.ChipTelemetry
 import com.aya.doank.ui.FavoritesController
 import com.aya.doank.ui.JitterController
 import com.aya.doank.ui.MapController
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
+    private lateinit var chipTelemetry: ChipTelemetry
 
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -62,11 +64,11 @@ class MainActivity : AppCompatActivity() {
         favorites = FavoritesController(
             this,
             FavoritesStore(this),
-            centerProvider = { map.currentCenter() },
-            onPick = { catId, lat, lng, name ->
-                playFromFavorite(catId, lat, lng, name)
-            }
-        )
+            centerProvider = { map.currentCenter() }
+        ) { latLng, name ->
+            map.flyTo(latLng)
+            Toast.makeText(this, "Pin → $name. Tekan ▶ untuk lock.", Toast.LENGTH_SHORT).show()
+        }
 
         permissionFlow = PermissionFlow(this, prefs) {
             map.ensureBlueDot()
@@ -75,6 +77,8 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
+        // v2.6.4: PlayPanel mem-push sendiri saat toggle
+        // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
             pusher = pusher,
@@ -91,6 +95,7 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
+        // ==== JITTER ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -106,6 +111,10 @@ class MainActivity : AppCompatActivity() {
         }
         updateThemeIcon()
 
+        // ==== CHIP TELEMETRI ====
+        chipTelemetry = ChipTelemetry(this, prefs)
+        chipTelemetry.bind()
+
         playPanel.bind()
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
@@ -114,6 +123,36 @@ class MainActivity : AppCompatActivity() {
         } else {
             nextChainStep()
         }
+
+        chipHandler.post(chipTick)
+    }
+
+    private val chipHandler = Handler(Looper.getMainLooper())
+    private val chipTick = object : Runnable {
+        override fun run() {
+            if (::chipTelemetry.isInitialized) chipTelemetry.onTick()
+            chipHandler.postDelayed(this, 1000L)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (permissionFlow.hasPermission()) map.ensureBlueDot()
+        chipHandler.post(chipTick)
+        permissionFlow.resumePendingBackground { nextChainStep() }
+        refreshNotif()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        chipHandler.removeCallbacks(chipTick)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        chainHandler.removeCallbacksAndMessages(null)
+        chipHandler.removeCallbacks(chipTick)
+        if (::map.isInitialized) map.stop()
     }
 
     private fun refreshNotif() {
@@ -123,18 +162,6 @@ class MainActivity : AppCompatActivity() {
             } else null
         }
         notifs.update(activeList)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (permissionFlow.hasPermission()) map.ensureBlueDot()
-        permissionFlow.resumePendingBackground { nextChainStep() }
-        refreshNotif()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::map.isInitialized) map.stop()
     }
 
     private fun nextChainStep() {
@@ -166,27 +193,6 @@ class MainActivity : AppCompatActivity() {
             lastStage = name
             request()
         }
-    }
-
-    private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
-        val target = Targets.byId(catId)
-        prefs.setSpoofPoint(catId, lat, lng)
-        prefs.setSpoofActive(catId, true)
-        pusher.push(target)
-        playPanel.refresh(catId)
-        refreshNotif()
-
-        val launch = packageManager.getLaunchIntentForPackage(
-            target.packageNames.firstOrNull() ?: return
-        )
-        if (launch != null) {
-            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(launch)
-        }
-
-        Toast.makeText(this,
-            "${target.label} AKTIF di \"$name\" — membuka aplikasi…",
-            Toast.LENGTH_SHORT).show()
     }
 
     private fun announce(target: SpoofTarget, active: Boolean) {
