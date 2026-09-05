@@ -63,7 +63,7 @@ class MainActivity : AppCompatActivity() {
             this,
             FavoritesStore(this),
             centerProvider = { map.currentCenter() },
-            onPlayFromFavorite = { catId, lat, lng, name ->
+            onPick = { catId, lat, lng, name ->
                 playFromFavorite(catId, lat, lng, name)
             }
         )
@@ -113,15 +113,6 @@ class MainActivity : AppCompatActivity() {
             map.ensureBlueDot()
         } else {
             nextChainStep()
-        }
-
-        // Auto-launch: push ulang setelah app target terbuka (1s/3s/6s)
-        Targets.all.forEach { t ->
-            if (prefs.isSpoofActive(t.id)) {
-                listOf(1000L, 3000L, 6000L).forEach { d ->
-                    Handler(Looper.getMainLooper()).postDelayed({ pusher.push(t) }, d)
-                }
-            }
         }
     }
 
