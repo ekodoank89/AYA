@@ -1,7 +1,6 @@
 package com.aya.doank.ui
 
 import android.app.Activity
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
@@ -10,7 +9,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 
 /**
  * Marker per-target di peta AYA.
- * v2.9: saat ▶ di panel → marker muncul di koordinat lock dengan label target.
+ * v2.9.2: saat ▶ → marker muncul di koordinat lock dengan label target.
  * Saat ■ → marker hilang. Saat re-lock → marker pindah.
  */
 class TargetMarkerController(private val activity: Activity) {
@@ -36,7 +35,7 @@ class TargetMarkerController(private val activity: Activity) {
                     .position(pos)
                     .title(label)
                     .icon(BitmapDescriptorFactory.defaultMarker(colorHue))
-            )
+            ) ?: return
         }
     }
 
@@ -45,7 +44,7 @@ class TargetMarkerController(private val activity: Activity) {
         markers.remove(targetId)?.remove()
     }
 
-    /** Hapus semua marker (dipanggil saat app ditutup). */
+    /** Hapus semua marker. */
     fun clearAll() {
         markers.values.forEach { it.remove() }
         markers.clear()
