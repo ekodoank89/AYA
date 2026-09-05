@@ -17,8 +17,8 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * v2.8.2: tap nama favorit → dialog konfirmasi → PLAY = langsung aktif
- * di koordinat favorit itu sesuai kategorinya.
+ * + Mode input: 📍 Dari Pin / ⌨ Manual (kolom lat/lng vertikal).
+ * Tap nama favorit → dialog konfirmasi → PLAY = langsung aktif di koordinat favorit.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -32,7 +32,6 @@ class FavoritesController(
         activity.findViewById<View>(btnId).setOnClickListener { show() }
     }
 
-    /** Dialog default sempit — lebarkan ke 92% lebar layar. */
     private fun widen(d: AlertDialog) {
         d.setOnShowListener {
             d.window?.setLayout(
@@ -42,16 +41,12 @@ class FavoritesController(
         }
     }
 
-    /** Kartu solid untuk dialog tanpa layout custom. */
-    private fun solidCard(d: AlertDialog): AlertDialog {
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        return d
-    }
-
     private fun show() {
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
         val catGojek  = v.findViewById<TextView>(R.id.cat_gojek)
+        val modePin   = v.findViewById<TextView>(R.id.mode_pin)
+        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
         val nameEt    = v.findViewById<EditText>(R.id.fav_name)
         val latlngRow = v.findViewById<View>(R.id.latlng_row)
         val latEt     = v.findViewById<EditText>(R.id.in_lat)
@@ -69,6 +64,7 @@ class FavoritesController(
             lngEt.error = null
         }
 
+        // ===== render — dideklarasikan SEBELUM setCat yang memanggilnya =====
         fun render() {
             val favs = store.all(cat)
             empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
@@ -83,7 +79,8 @@ class FavoritesController(
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
                 item.setOnClickListener {
-                    showPlayConfirm(cat, i)
+                    dialog?.dismiss()
+                    onPick(LatLng(f.lat, f.lng), f.name)
                 }
                 list.addView(item)
             }
@@ -190,22 +187,7 @@ class FavoritesController(
         render()
     }
 
-    // ===== KONFIRMASI PLAY dari favorit =====
-    private fun showPlayConfirm(cat: String, i: Int) {
-        val f = store.all(cat).getOrNull(i) ?: return
-        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setTitle("Mulai Spoofing?")
-            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
-            .setPositiveButton("▶ PLAY") { _, _ ->
-                onPlayFromFavorite(cat, f.lat, f.lng, f.name)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-    }
-
-    // ===== EDIT =====
+    // ===== EDIT: nama + koordinat =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -242,7 +224,7 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
+                errTv.text = "Nama sudah dipakai lokasi lain."
                 errTv.visibility = View.VISIBLE
             }
         }
