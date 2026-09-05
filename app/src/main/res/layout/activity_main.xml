@@ -19,15 +19,39 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Kolom kanan: zoom + GPS + tema -->
+    <!-- Kolom kanan: 4 tombol (fokus, tema, zoom in, zoom out) -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="180dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="186dp"
         android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/btn_my_location"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:elevation="6dp"
+            android:padding="11dp"
+            android:contentDescription="Fokus ke lokasi saya"
+            android:src="@drawable/ic_gps" />
+
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
+
+        <ImageButton
+            android:id="@+id/btn_theme"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:elevation="6dp"
+            android:padding="11dp"
+            android:contentDescription="Ganti tema peta"
+            android:src="@drawable/ic_moon" />
+
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
 
         <Button
             android:id="@+id/btn_zoom_in"
@@ -56,44 +80,18 @@
             android:textColor="#212121"
             android:fontFamily="monospace"
             android:text="−" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <ImageButton
-            android:id="@+id/btn_my_location"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:elevation="6dp"
-            android:padding="11dp"
-            android:contentDescription="Fokus ke lokasi saya"
-            android:src="@drawable/ic_gps" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <ImageButton
-            android:id="@+id/btn_theme"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:elevation="6dp"
-            android:padding="11dp"
-            android:contentDescription="Ganti tema peta"
-            android:src="@drawable/ic_moon" />
     </LinearLayout>
 
-    <!-- KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER -->
+    <!-- ===== KONTAINER FULL-WIDTH: GRAB | GOJEK | FAVORIT | JITTER ===== -->
     <LinearLayout
-        android:id="@+id/bottom_container"
+        android:id="@+id/panelbottom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingTop="14dp"
-        android:paddingBottom="26dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp"
         android:background="@drawable/bg_dialog_card"
         android:elevation="10dp">
 
