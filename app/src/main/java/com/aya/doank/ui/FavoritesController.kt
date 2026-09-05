@@ -17,8 +17,8 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * v2.8.1 FIX: SEMUA dialog (utama, edit, hapus) dikartukan solid via helper
- * solidCard() — tidak ada lagi window transparan.
+ * v2.8.2 FIX: widen() diterapkan ke SEMUA dialog (utama, edit, hapus) —
+ * dialog edit kini 92% lebar layar, tidak lagi sempit.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -42,7 +42,7 @@ class FavoritesController(
         }
     }
 
-    /** Kartu solid untuk semua dialog — dipakai edit & hapus (tanpa layout custom). */
+    /** Kartu solid untuk dialog tanpa layout custom (hapus). */
     private fun solidCard(d: AlertDialog): AlertDialog {
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
         return d
@@ -189,14 +189,13 @@ class FavoritesController(
         dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
-        // Layout punya kartu rounded sendiri → window TETAP transparan agar sudut membulat
         dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
         widen(dialog!!)
         dialog?.show()
         render()
     }
 
-    // ===== EDIT: nama + koordinat (kartu solid) =====
+    // ===== EDIT: nama + koordinat — 92% LEBAR LAYAR =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -208,11 +207,11 @@ class FavoritesController(
         latEt.setText(f.lat.toString())
         lngEt.setText(f.lng.toString())
 
-        val d = solidCard(
-            AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-                .setView(v)
-                .create()
-        )
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setView(v)
+            .create()
+        d.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        widen(d)   // ← FIX: dialog edit kini selebar dialog utama
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -241,7 +240,7 @@ class FavoritesController(
         d.show()
     }
 
-    // ===== HAPUS: konfirmasi (kartu solid) =====
+    // ===== HAPUS: konfirmasi — dialog kecil tetap wajar untuk konfirmasi =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val d = solidCard(
