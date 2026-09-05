@@ -82,7 +82,7 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- ===== KONTAINER HORIZONTAL BAWAH: GRAB | GOJEK | FAVORIT | JITTER ===== -->
+    <!-- KONTAINER HORIZONTAL BAWAH: GRAB | GOJEK | FAVORIT | JITTER -->
     <LinearLayout
         android:id="@+id/bottom_container"
         android:layout_width="match_parent"
@@ -149,4 +149,94 @@
 
             <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:id="@+id/dot_gojek"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="5dp"
+                    android:background="@drawable/bg_dot_red" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/target_gojek"
+                    android:textColor="@color/label_text"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_gojek"
+                android:layout_width="55dp"
+                android:layout_height="34dp"
+                android:layout_marginTop="6dp"
+                android:padding="10dp"
+                android:background="@drawable/bg_play_red_touch"
+                android:contentDescription="Mulai GOJEK"
+                android:src="@drawable/ic_play" />
+        </LinearLayout>
+
+        <!-- FAVORIT -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/favorite_label"
+                android:textColor="@color/label_text"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <ImageButton
+                android:id="@+id/btn_fav"
+                android:layout_width="55dp"
+                android:layout_height="34dp"
+                android:layout_marginTop="6dp"
+                android:padding="8dp"
+                android:background="@drawable/bg_fav_touch"
+                android:contentDescription="Lokasi tersimpan"
+                android:src="@drawable/ic_star_white" />
+        </LinearLayout>
+
+        <!-- JITTER -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/jitter_label"
+                android:textColor="@color/label_text"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <ImageButton
+                android:id="@+id/btn_jitter"
+                android:layout_width="55dp"
+                android:layout_height="34dp"
+                android:layout_marginTop="6dp"
+                android:padding="8dp"
+                android:background="@drawable/bg_fav_touch"
+                android:contentDescription="Pengaturan pergerakan titik"
+                android:src="@drawable/ic_tune" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>
