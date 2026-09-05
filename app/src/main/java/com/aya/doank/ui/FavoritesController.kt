@@ -17,14 +17,14 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * v2.8.2 FIX: widen() diterapkan ke SEMUA dialog (utama, edit, hapus) —
- * dialog edit kini 92% lebar layar, tidak lagi sempit.
+ * v2.8.2: tap nama favorit → dialog konfirmasi → PLAY = langsung aktif
+ * di koordinat favorit itu sesuai kategorinya.
  */
 class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onPick: (LatLng, String) -> Unit
+    private val onPlayFromFavorite: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -42,7 +42,7 @@ class FavoritesController(
         }
     }
 
-    /** Kartu solid untuk dialog tanpa layout custom (hapus). */
+    /** Kartu solid untuk dialog tanpa layout custom. */
     private fun solidCard(d: AlertDialog): AlertDialog {
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
         return d
@@ -52,8 +52,6 @@ class FavoritesController(
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
         val catGojek  = v.findViewById<TextView>(R.id.cat_gojek)
-        val modePin   = v.findViewById<TextView>(R.id.mode_pin)
-        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
         val nameEt    = v.findViewById<EditText>(R.id.fav_name)
         val latlngRow = v.findViewById<View>(R.id.latlng_row)
         val latEt     = v.findViewById<EditText>(R.id.in_lat)
@@ -71,7 +69,6 @@ class FavoritesController(
             lngEt.error = null
         }
 
-        // ===== render: dideklarasikan SEBELUM setCat yang memanggilnya =====
         fun render() {
             val favs = store.all(cat)
             empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
@@ -86,8 +83,7 @@ class FavoritesController(
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
                 item.setOnClickListener {
-                    onPick(LatLng(f.lat, f.lng), f.name)
-                    dialog?.dismiss()
+                    showPlayConfirm(cat, i)
                 }
                 list.addView(item)
             }
@@ -109,7 +105,6 @@ class FavoritesController(
         catGrab.setOnClickListener { setCat(Targets.GRAB.id) }
         catGojek.setOnClickListener { setCat(Targets.GOJEK.id) }
 
-        // ===== Mode input =====
         fun setMode(m: String) {
             mode = m
             val sel = R.drawable.bg_mode_on
@@ -195,7 +190,22 @@ class FavoritesController(
         render()
     }
 
-    // ===== EDIT: nama + koordinat — 92% LEBAR LAYAR =====
+    // ===== KONFIRMASI PLAY dari favorit =====
+    private fun showPlayConfirm(cat: String, i: Int) {
+        val f = store.all(cat).getOrNull(i) ?: return
+        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                onPlayFromFavorite(cat, f.lat, f.lng, f.name)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+    }
+
+    // ===== EDIT =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -210,8 +220,7 @@ class FavoritesController(
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
-        d.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        widen(d)   // ← FIX: dialog edit kini selebar dialog utama
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -240,25 +249,21 @@ class FavoritesController(
         d.show()
     }
 
-    // ===== HAPUS: konfirmasi — dialog kecil tetap wajar untuk konfirmasi =====
+    // ===== HAPUS: konfirmasi =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
-        val d = solidCard(
-            AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-                .setTitle("Hapus lokasi?")
-                .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
-                .setPositiveButton("Hapus") { _, _ ->
-                    store.removeAt(cat, i)
-                    refreshDialogIfOpen()
-                    Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
-                }
-                .setNegativeButton("Batal", null)
-                .create()
-        )
-        d.show()
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Hapus lokasi?")
+            .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
+            .setPositiveButton("Hapus") { _, _ ->
+                store.removeAt(cat, i)
+                refreshDialogIfOpen()
+                Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
-    /** Render ulang dialog utama bila sedang terbuka — tutup yang lama dulu. */
     private fun refreshDialogIfOpen() {
         if (dialog?.isShowing == true) {
             dialog?.dismiss()
