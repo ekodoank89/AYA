@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity() {
             target.packageNames.firstOrNull() ?: return
         )
         if (launch != null) {
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launch)
         }
 
