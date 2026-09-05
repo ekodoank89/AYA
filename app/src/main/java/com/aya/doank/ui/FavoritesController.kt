@@ -17,10 +17,8 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * Segmen kategori mengendalikan: form simpan, daftar, edit, hapus.
- * v2.8.1 FIX: render() dideklarasikan SEBELUM setCat() yang memanggilnya
- * (local function Kotlin wajib dideklarasi sebelum pemanggil).
- * + Mode input: 📍 Dari Pin / ⌨ Manual (kolom lat/lng vertikal).
+ * v2.8.1 FIX: SEMUA dialog (utama, edit, hapus) dikartukan solid via helper
+ * solidCard() — tidak ada lagi window transparan.
  */
 class FavoritesController(
     private val activity: Activity,
@@ -42,6 +40,12 @@ class FavoritesController(
                 WindowManager.LayoutParams.WRAP_CONTENT
             )
         }
+    }
+
+    /** Kartu solid untuk semua dialog — dipakai edit & hapus (tanpa layout custom). */
+    private fun solidCard(d: AlertDialog): AlertDialog {
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        return d
     }
 
     private fun show() {
@@ -67,7 +71,7 @@ class FavoritesController(
             lngEt.error = null
         }
 
-        // ===== render: DIDEKLARASI SEBELUM setCat yang memanggilnya =====
+        // ===== render: dideklarasikan SEBELUM setCat yang memanggilnya =====
         fun render() {
             val favs = store.all(cat)
             empty.visibility = if (favs.isEmpty()) View.VISIBLE else View.GONE
@@ -91,8 +95,10 @@ class FavoritesController(
 
         fun setCat(c: String) {
             cat = c
-            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
-            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
+            val sel = R.drawable.bg_mode_on
+            val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt()
+            val off = 0x99FFFFFF.toInt()
             catGrab.setBackgroundResource(if (c == Targets.GRAB.id) sel else unsel)
             catGrab.setTextColor(if (c == Targets.GRAB.id) on else off)
             catGojek.setBackgroundResource(if (c == Targets.GOJEK.id) sel else unsel)
@@ -106,8 +112,10 @@ class FavoritesController(
         // ===== Mode input =====
         fun setMode(m: String) {
             mode = m
-            val sel = R.drawable.bg_mode_on; val unsel = R.drawable.bg_mode_off
-            val on = 0xFFC8F7D8.toInt(); val off = 0x99FFFFFF.toInt()
+            val sel = R.drawable.bg_mode_on
+            val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt()
+            val off = 0x99FFFFFF.toInt()
             modePin.setBackgroundResource(if (m == "pin") sel else unsel)
             modePin.setTextColor(if (m == "pin") on else off)
             modeManual.setBackgroundResource(if (m == "manual") sel else unsel)
@@ -159,10 +167,14 @@ class FavoritesController(
                     Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-                lat = c.latitude; lng = c.longitude; src = "pin"
+                lat = c.latitude
+                lng = c.longitude
+                src = "pin"
             } else {
                 val p = validate(latEt, lngEt) ?: return@setOnClickListener
-                lat = p.first; lng = p.second; src = "manual"
+                lat = p.first
+                lng = p.second
+                src = "manual"
             }
             if (store.add(cat, name, lat, lng, src)) {
                 nameEt.text.clear()
@@ -177,13 +189,14 @@ class FavoritesController(
         dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
             .setView(v)
             .create()
+        // Layout punya kartu rounded sendiri → window TETAP transparan agar sudut membulat
         dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
         widen(dialog!!)
         dialog?.show()
         render()
     }
 
-    // ===== EDIT: nama + koordinat (per kategori) =====
+    // ===== EDIT: nama + koordinat (kartu solid) =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -195,10 +208,11 @@ class FavoritesController(
         latEt.setText(f.lat.toString())
         lngEt.setText(f.lng.toString())
 
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setView(v)
-            .create()
-        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        val d = solidCard(
+            AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+                .setView(v)
+                .create()
+        )
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -227,19 +241,22 @@ class FavoritesController(
         d.show()
     }
 
-    // ===== HAPUS: konfirmasi =====
+    // ===== HAPUS: konfirmasi (kartu solid) =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setTitle("Hapus lokasi?")
-            .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
-            .setPositiveButton("Hapus") { _, _ ->
-                store.removeAt(cat, i)
-                refreshDialogIfOpen()
-                Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+        val d = solidCard(
+            AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+                .setTitle("Hapus lokasi?")
+                .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
+                .setPositiveButton("Hapus") { _, _ ->
+                    store.removeAt(cat, i)
+                    refreshDialogIfOpen()
+                    Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Batal", null)
+                .create()
+        )
+        d.show()
     }
 
     /** Render ulang dialog utama bila sedang terbuka — tutup yang lama dulu. */
