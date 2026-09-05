@@ -131,9 +131,9 @@
             <ImageButton
                 android:id="@+id/btn_grab"
                 android:layout_width="55dp"
-                android:layout_height="34dp"
+                android:layout_height="55dp"
                 android:layout_marginTop="6dp"
-                android:padding="10dp"
+                android:padding="15dp"
                 android:background="@drawable/bg_play_red_touch"
                 android:contentDescription="Mulai GRAB"
                 android:src="@drawable/ic_play" />
@@ -173,9 +173,9 @@
             <ImageButton
                 android:id="@+id/btn_gojek"
                 android:layout_width="55dp"
-                android:layout_height="34dp"
+                android:layout_height="55dp"
                 android:layout_marginTop="6dp"
-                android:padding="10dp"
+                android:padding="15dp"
                 android:background="@drawable/bg_play_red_touch"
                 android:contentDescription="Mulai GOJEK"
                 android:src="@drawable/ic_play" />
@@ -201,9 +201,9 @@
             <ImageButton
                 android:id="@+id/btn_fav"
                 android:layout_width="55dp"
-                android:layout_height="34dp"
+                android:layout_height="55dp"
                 android:layout_marginTop="6dp"
-                android:padding="8dp"
+                android:padding="15dp"
                 android:background="@drawable/bg_fav_touch"
                 android:contentDescription="Lokasi tersimpan"
                 android:src="@drawable/ic_star_white" />
@@ -229,9 +229,9 @@
             <ImageButton
                 android:id="@+id/btn_jitter"
                 android:layout_width="55dp"
-                android:layout_height="34dp"
+                android:layout_height="55dp"
                 android:layout_marginTop="6dp"
-                android:padding="8dp"
+                android:padding="15dp"
                 android:background="@drawable/bg_fav_touch"
                 android:contentDescription="Pengaturan pergerakan titik"
                 android:src="@drawable/ic_tune" />
