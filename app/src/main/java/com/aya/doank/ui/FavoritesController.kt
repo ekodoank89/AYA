@@ -42,6 +42,19 @@ class FavoritesController(
         }
     }
 
+    /** Dialog builder tanpa layout custom — beri kartu solid + lebar 92%. */
+    private fun kartu(builder: AlertDialog.Builder): AlertDialog {
+        val d = builder.create()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        d.setOnShowListener {
+            d.window?.setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.92).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+        }
+        return d
+    }
+
     private fun show() {
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
@@ -187,6 +200,7 @@ class FavoritesController(
         render()
     }
 
+    // ===== EDIT: nama + koordinat (kartu solid + 92% lebar) =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -202,6 +216,7 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        lebarkan(d)
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -230,6 +245,7 @@ class FavoritesController(
         d.show()
     }
 
+    // ===== HAPUS: konfirmasi (kartu solid) =====
     private fun askDelete(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
