@@ -13,9 +13,9 @@
         android:paddingBottom="8dp"
         android:textColor="#99FFFFFF"
         android:textSize="11sp"
-        android:text="Favorit tersimpan per-kategori — list GRAB & list GOJEK terpisah." />
+        android:text="Favorit tersimpan per-kategori — list GRAB dan list GOJEK terpisah." />
 
-    <!-- PEMILIH KATEGORI: nilai form & daftar mengikuti kategori terpilih -->
+    <!-- PEMILIH KATEGORI: nilai form dan daftar mengikuti kategori terpilih -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
