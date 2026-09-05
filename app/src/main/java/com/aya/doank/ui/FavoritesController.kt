@@ -216,7 +216,7 @@ class FavoritesController(
         d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
     }
 
-    // ===== EDIT: nama + koordinat =====
+        // ===== EDIT: nama + koordinat (kartu solid + 92% lebar) =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -232,6 +232,7 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+        lebarkan(d)   // ← dialog edit 92% lebar layar — sama dengan dialog utama
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -253,7 +254,7 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain."
+                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
                 errTv.visibility = View.VISIBLE
             }
         }
