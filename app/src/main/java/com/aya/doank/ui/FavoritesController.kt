@@ -129,4 +129,156 @@ class FavoritesController(
             latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
             clearErr()
         }
-        modePin.setOnClickListener { setMode
+        modePin.setOnClickListener { setMode("pin") }
+        modeManual.setOnClickListener { setMode("manual") }
+
+        fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
+            clearErr()
+            val lat = la.text.toString().replace(',', '.').toDoubleOrNull()
+            val lng = ln.text.toString().replace(',', '.').toDoubleOrNull()
+            if (lat == null || lng == null) {
+                errTv.text = "Latitude dan Longitude wajib angka desimal."
+                errTv.visibility = View.VISIBLE
+                if (lat == null) la.error = " "
+                if (lng == null) ln.error = " "
+                return null
+            }
+            if (lat < -90 || lat > 90) {
+                errTv.text = "Latitude harus antara -90 sampai 90."
+                errTv.visibility = View.VISIBLE
+                la.error = " "
+                return null
+            }
+            if (lng < -180 || lng > 180) {
+                errTv.text = "Longitude harus antara -180 sampai 180."
+                errTv.visibility = View.VISIBLE
+                ln.error = " "
+                return null
+            }
+            return lat to lng
+        }
+
+        v.findViewById<View>(R.id.fav_add).setOnClickListener {
+            val name = nameEt.text.toString().trim()
+            if (name.isEmpty()) {
+                Toast.makeText(activity, "Beri nama lokasinya dulu", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val lat: Double
+            val lng: Double
+            val src: String
+            if (mode == "pin") {
+                val c = centerProvider()
+                if (c == null) {
+                    Toast.makeText(activity, "Peta belum siap", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                lat = c.latitude
+                lng = c.longitude
+                src = "pin"
+            } else {
+                val p = validate(latEt, lngEt) ?: return@setOnClickListener
+                lat = p.first
+                lng = p.second
+                src = "manual"
+            }
+            if (store.add(cat, name, lat, lng, src)) {
+                nameEt.text.clear()
+                latEt.text.clear()
+                lngEt.text.clear()
+                render()
+            } else {
+                Toast.makeText(activity, "Nama sudah dipakai di kategori ini", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        dialog = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setView(v)
+            .create()
+        dialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        lebarkan(dialog!!)
+        dialog?.show()
+        render()
+    }
+
+    // ===== KONFIRMASI PLAY dari favorit =====
+    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
+        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                onPlay(cat, f.lat, f.lng, f.name)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
+        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
+    }
+
+    // ===== EDIT: nama + koordinat =====
+    private fun showEdit(cat: String, i: Int) {
+        val f = store.all(cat).getOrNull(i) ?: return
+        val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
+        val nameEt = v.findViewById<EditText>(R.id.e_name)
+        val latEt = v.findViewById<EditText>(R.id.e_lat)
+        val lngEt = v.findViewById<EditText>(R.id.e_lng)
+        val errTv = v.findViewById<TextView>(R.id.e_err)
+        nameEt.setText(f.name)
+        latEt.setText(f.lat.toString())
+        lngEt.setText(f.lng.toString())
+
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setView(v)
+            .create()
+        d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
+
+        v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
+        v.findViewById<View>(R.id.e_save).setOnClickListener {
+            val name = nameEt.text.toString().trim()
+            if (name.isEmpty()) {
+                errTv.text = "Nama tidak boleh kosong."
+                errTv.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+            val lat = latEt.text.toString().replace(',', '.').toDoubleOrNull()
+            val lng = lngEt.text.toString().replace(',', '.').toDoubleOrNull()
+            if (lat == null || lng == null || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                errTv.text = "Koordinat tidak valid (lat -90..90, lng -180..180)."
+                errTv.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+            if (store.updateAt(cat, i, name, lat, lng)) {
+                d.dismiss()
+                refreshDialogIfOpen()
+                Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
+            } else {
+                errTv.text = "Nama sudah dipakai lokasi lain."
+                errTv.visibility = View.VISIBLE
+            }
+        }
+        d.show()
+    }
+
+    // ===== HAPUS: konfirmasi =====
+    private fun askDelete(cat: String, i: Int) {
+        val f = store.all(cat).getOrNull(i) ?: return
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Hapus lokasi?")
+            .setMessage("\"${f.name}\" akan dihapus permanen dari kategori ini.")
+            .setPositiveButton("Hapus") { _, _ ->
+                store.removeAt(cat, i)
+                refreshDialogIfOpen()
+                Toast.makeText(activity, "\"${f.name}\" dihapus", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun refreshDialogIfOpen() {
+        if (dialog?.isShowing == true) {
+            dialog?.dismiss()
+            show()
+        }
+    }
+}
