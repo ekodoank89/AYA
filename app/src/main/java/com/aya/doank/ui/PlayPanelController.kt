@@ -48,12 +48,13 @@ class PlayPanelController(
         }
     }
 
-    private fun toggle(row: Row) {
+        private fun toggle(row: Row) {
         val active = !prefs.isSpoofActive(row.targetId)
         prefs.setSpoofActive(row.targetId, active)
         if (active) {
             // 1) Lock koordinat pin saat ini
-            centerProvider()?.let { prefs.setSpoofPoint(row.targetId, it.latitude, it.longitude) }
+            val center = centerProvider()
+            center?.let { prefs.setSpoofPoint(row.targetId, it.latitude, it.longitude) }
         }
         render(row)
 
@@ -64,9 +65,6 @@ class PlayPanelController(
 
         // 3) Callback UI (notif, dsb.)
         onToggle(target, active)
-
-        // 4) Aktivasi → buka app target + push ulang terjadwal
-        if (active) launchTarget(target)
     }
 
     /** Buka launcher activity target + push ulang terjadwal (1s/3s/6s). */
