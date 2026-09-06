@@ -26,9 +26,12 @@ import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
 import com.aya.doank.ui.TargetMarkerController
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.GoogleMap
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
 
     private lateinit var prefs: Prefs
     private lateinit var map: MapController
@@ -96,24 +99,7 @@ class MainActivity : AppCompatActivity() {
             announce(target, active)
         }
 
-        // ==== MARKER CALLBACKS ====
-        com.aya.doank.xposed.SpoofConfigBridge.onMarkerState = { targetId, lat, lng ->
-            runOnUiThread {
-                val t = Targets.byId(targetId)
-                val hue = if (targetId == Targets.GRAB.id) 150f else 100f
-                targetMarker.show(targetId, t.label, hue, lat, lng)
-            }
-        }
-        com.aya.doank.xposed.SpoofConfigBridge.onMarkerRemoved = { targetId ->
-            runOnUiThread { targetMarker.remove(targetId) }
-        }
-        com.aya.doank.xposed.SpoofConfigBridge.onRelock = { targetId, lat, lng ->
-            runOnUiThread {
-                val t = Targets.byId(targetId)
-                targetMarker.show(targetId, t.label,
-                    if (targetId == Targets.GRAB.id) 150f else 100f, lat, lng)
-            }
-        }
+        targetMarker = TargetMarkerController(this)
 
         favorites.bind(R.id.btn_fav)
 
@@ -143,7 +129,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Satu pintu update notifikasi indikator (kumpulkan target aktif → update). */
     private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
             if (prefs.isSpoofActive(t.id)) {
@@ -156,42 +141,27 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
-
-        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
-
-        // Notifikasi indikator sinkron dengan state tersimpan
         refreshNotif()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        chainHandler.removeCallbacksAndMessages(null)
         if (::map.isInitialized) map.stop()
     }
 
-    /**
-     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
-     * 1) Lokasi dasar   — ulang hingga granted
-     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
-     * 3) Notifikasi     — ulang hingga granted
-     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
-     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
-
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
-
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
-
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -201,17 +171,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
-     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
-     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
-            Toast.makeText(
-                this,
-                "Izin \"$name\" belum aktif — mengulangi permintaan",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Izin \"$name\" belum aktif — mengulangi permintaan", Toast.LENGTH_SHORT).show()
             chainHandler.postDelayed({ request() }, 700)
         } else {
             lastStage = name
@@ -219,7 +181,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
         prefs.setSpoofPoint(catId, lat, lng)
@@ -251,4 +212,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btn_theme)
             .setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
     }
+
+    // Callback marker drag (tidak dipakai saat ini, siap untuk ekspansi)
+    override fun onMarkerDragStart(marker: Marker) { }
+    override fun onMarkerDrag(marker: Marker) { }
+    override fun onMarkerDragEnd(marker: Marker) { }
 }
