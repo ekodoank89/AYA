@@ -8,16 +8,17 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 
 /**
- * Marker per-target di peta AYA.
- * v2.9.2: saat ▶ → marker muncul di koordinat lock dengan label target.
+ * Marker berlabel per-target di peta AYA (v2.8.0).
+ * Saat ▶ → marker muncul di koordinat lock dengan label target.
  * Saat ■ → marker hilang. Saat re-lock → marker pindah.
+ * Semua data dari Prefs (satu proses — tidak butuh IPC).
  */
 class TargetMarkerController(private val activity: Activity) {
 
     private var googleMap: GoogleMap? = null
     private val markers = mutableMapOf<String, Marker>()
 
-    fun attach(map: GoogleMap?) {
+    fun attach(map: GoogleMap) {
         googleMap = map
     }
 
@@ -44,7 +45,7 @@ class TargetMarkerController(private val activity: Activity) {
         markers.remove(targetId)?.remove()
     }
 
-    /** Hapus semua marker. */
+    /** Hapus semua marker (dipanggil saat app ditutup). */
     fun clearAll() {
         markers.values.forEach { it.remove() }
         markers.clear()
