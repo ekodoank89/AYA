@@ -99,7 +99,7 @@ class SpoofConfig(private val targetId: String) {
         baseLng = ln
         setTransport(via)
         if (changed) jitter.onBaseChanged(la)
-        if (active != lastLoggedActive) {
+                if (active != lastLoggedActive) {
             lastLoggedActive = active
             if (active) {
                 XposedBridge.log("AYA [$targetId]: spoof AKTIF via $transport → $la, $ln")
@@ -108,6 +108,10 @@ class SpoofConfig(private val targetId: String) {
                 XposedBridge.log("AYA [$targetId]: spoof dimatikan (transport: $transport)")
                 onMarkerRemoved?.invoke()
             }
+        }
+        // Re-lock: jika titik berganti saat masih aktif, update posisi marker
+        if (changed && active) {
+            onRelock?.invoke(la, ln)
         }
         // Re-lock: jika titik berganti saat masih aktif, update posisi marker
         if (changed && active) {
