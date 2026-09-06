@@ -120,6 +120,8 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         updateThemeIcon()
 
         playPanel.bind()
+        // Marker attach ke map (dipanggil saat map siap)
+        // TargetMarkerController menerima GoogleMap dari MapController
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
         if (permissionFlow.hasPermission()) {
