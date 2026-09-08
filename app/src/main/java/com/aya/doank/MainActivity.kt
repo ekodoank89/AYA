@@ -25,13 +25,9 @@ import com.aya.doank.ui.NotifController
 import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
-import com.aya.doank.ui.TargetMarkerController
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.GoogleMap
 
-class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var prefs: Prefs
     private lateinit var map: MapController
@@ -42,8 +38,8 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
     private lateinit var favorites: FavoritesController
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
-    private lateinit var targetMarker: TargetMarkerController
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -51,6 +47,7 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -99,8 +96,6 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
             announce(target, active)
         }
 
-        targetMarker = TargetMarkerController(this)
-
         favorites.bind(R.id.btn_fav)
 
         // ==== JITTER ====
@@ -120,8 +115,6 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         updateThemeIcon()
 
         playPanel.bind()
-        // Marker attach ke map (dipanggil saat map siap)
-        // TargetMarkerController menerima GoogleMap dari MapController
         map.attach(supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment)
 
         if (permissionFlow.hasPermission()) {
@@ -131,6 +124,7 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         }
     }
 
+    /** Satu pintu update notifikasi indikator (kumpulkan target aktif → update). */
     private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
             if (prefs.isSpoofActive(t.id)) {
@@ -143,7 +137,11 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
+
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
+
+        // Notifikasi indikator sinkron dengan state tersimpan
         refreshNotif()
     }
 
@@ -152,18 +150,28 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         if (::map.isInitialized) map.stop()
     }
 
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
+     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
+
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
+
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -173,9 +181,17 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         }
     }
 
+    /**
+     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
+     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
-            Toast.makeText(this, "Izin \"$name\" belum aktif — mengulangi permintaan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Izin \"$name\" belum aktif — mengulangi permintaan",
+                Toast.LENGTH_SHORT
+            ).show()
             chainHandler.postDelayed({ request() }, 700)
         } else {
             lastStage = name
@@ -183,6 +199,7 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         }
     }
 
+    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
         prefs.setSpoofPoint(catId, lat, lng)
@@ -195,7 +212,7 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
             target.packageNames.firstOrNull() ?: return
         )
         if (launch != null) {
-            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launch)
         }
 
@@ -214,9 +231,4 @@ class MainActivity : AppCompatActivity(), GoogleMap.OnMarkerDragListener {
         findViewById<ImageButton>(R.id.btn_theme)
             .setImageResource(if (prefs.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
     }
-
-    // Callback marker drag (tidak dipakai saat ini, siap untuk ekspansi)
-    override fun onMarkerDragStart(marker: Marker) { }
-    override fun onMarkerDrag(marker: Marker) { }
-    override fun onMarkerDragEnd(marker: Marker) { }
 }
