@@ -15,7 +15,8 @@ import com.aya.doank.core.Targets
 
 /**
  * Controller play/stop per target — v2.9.
- * Saat aktivasi: lock → push → notif callback → auto-launch app target
+ * Layout horizontal bawah: btn_grab | btn_gojek berdampingan.
+ * Saat aktivasi: lock → push → callback → auto-launch app target
  * → push ulang terjadwal (1s/3s/6s) menangkap receiver target yang baru start.
  */
 class PlayPanelController(
@@ -48,13 +49,12 @@ class PlayPanelController(
         }
     }
 
-        private fun toggle(row: Row) {
+    private fun toggle(row: Row) {
         val active = !prefs.isSpoofActive(row.targetId)
         prefs.setSpoofActive(row.targetId, active)
         if (active) {
             // 1) Lock koordinat pin saat ini
-            val center = centerProvider()
-            center?.let { prefs.setSpoofPoint(row.targetId, it.latitude, it.longitude) }
+            centerProvider()?.let { prefs.setSpoofPoint(row.targetId, it.latitude, it.longitude) }
         }
         render(row)
 
@@ -65,9 +65,13 @@ class PlayPanelController(
 
         // 3) Callback UI (notif, dsb.)
         onToggle(target, active)
+
+        // 4) Aktivasi → buka app target + push ulang terjadwal
+        if (active) launchTarget(target)
     }
 
-    /** Buka launcher activity target + push ulang terjadwal (1s/3s/6s). */
+    /** Buka launcher activity target. Setelah launch, push diulang pada 1s/3s/6s —
+     *  menangkap receiver target yang baru saja terpasang setelah proses start. */
     private fun launchTarget(target: SpoofTarget) {
         val pm = activity.packageManager
 
@@ -83,7 +87,7 @@ class PlayPanelController(
         }
 
         if (launched) {
-            // Push ulang: menangkap receiver target yang baru terpasang
+            // Push ulang terjadwal: menangkap receiver target yang baru saja terpasang
             listOf(1000L, 3000L, 6000L).forEach { delay ->
                 handler.postDelayed({ pusher.push(target) }, delay)
             }
