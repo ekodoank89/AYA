@@ -93,7 +93,7 @@ class FavoritesController(
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
-                                item.setOnClickListener {
+                item.setOnClickListener {
                     showPlayConfirm(cat, i, f)
                 }
                 list.addView(item)
@@ -216,7 +216,7 @@ class FavoritesController(
         d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
     }
 
-        // ===== EDIT: nama + koordinat (kartu solid + 92% lebar) =====
+    // ===== EDIT: nama + koordinat =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -232,7 +232,6 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        lebarkan(d)   // ← dialog edit 92% lebar layar — sama dengan dialog utama
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -254,7 +253,7 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
+                errTv.text = "Nama sudah dipakai lokasi lain."
                 errTv.visibility = View.VISIBLE
             }
         }
@@ -276,21 +275,6 @@ class FavoritesController(
             .show()
     }
 
-    // ===== KONFIRMASI PLAY dari favorit =====
-    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
-        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setTitle("Mulai Spoofing?")
-            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
-            .setPositiveButton("▶ PLAY") { _, _ ->
-                onPick(cat, f.lat, f.lng, f.name)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
-        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
-    }
-    
     private fun refreshDialogIfOpen() {
         if (dialog?.isShowing == true) {
             dialog?.dismiss()
