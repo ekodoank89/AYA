@@ -26,6 +26,7 @@ import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
 
 class MainActivity : AppCompatActivity() {
 
