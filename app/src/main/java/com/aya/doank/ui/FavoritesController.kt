@@ -16,15 +16,15 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
 
 /**
- * Dialog favorit — v2.9.2: PER KATEGORI (GRAB | GOJEK).
- * Tap nama favorit → pin menuju koordinat → langsung play sesuai kategori → close menu.
+ * Dialog favorit — v2.9: PER KATEGORI (GRAB | GOJEK).
+ * Tap nama favorit → onFavoritePlay(cat, lat, lng, name) → MainActivity memicu play.
  * Semua dialog dikartukan solid + dilebarkan 92% via helper.
  */
 class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onFavoriteTap: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onFavoritePlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -94,7 +94,7 @@ class FavoritesController(
                 // Tap nama favorit → langsung play sesuai kategori
                 item.setOnClickListener {
                     dialog?.dismiss()
-                    onFavoriteTap(cat, f.lat, f.lng, f.name)
+                    onFavoritePlay(cat, f.lat, f.lng, f.name)
                 }
                 list.addView(item)
             }
@@ -217,7 +217,7 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        lebarkan(d)   // ← TAMBAHKAN INI — dialog edit 92% lebar layar
+
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
             val name = nameEt.text.toString().trim()
