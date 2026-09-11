@@ -11,8 +11,8 @@ android {
         applicationId = "com.aya.doank"
         minSdk = 30
         targetSdk = 36
-        versionCode = 39
-        versionName = "2.9.3"
+        versionCode = 40
+        versionName = "2.9.4"
         manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
@@ -38,6 +38,14 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    // Penamaan APK otomatis: AYA-<versionName>-<versionCode>.apk
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "AYA-${versionName}-${versionCode}.apk"
+        }
     }
 }
 
