@@ -52,14 +52,55 @@
             android:src="@drawable/ic_moon" />
     </LinearLayout>
 
-    <!-- KONTAINER KIRI BAWAH: GRAB / GOJEK / FAVORIT / JITTER -->
+    <!-- Kolom kiri: zoom -->
+    <LinearLayout
+        android:id="@+id/zoomcol"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="28dp"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btn_zoom_in"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:elevation="6dp"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="monospace"
+            android:text="+" />
+
+        <Space android:layout_width="1dp" android:layout_height="10dp" />
+
+        <Button
+            android:id="@+id/btn_zoom_out"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_button"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:elevation="6dp"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="monospace"
+            android:text="−" />
+    </LinearLayout>
+
+    <!-- KONTAINER KIRI BAWAH: GRAB / GOJEK / FAVORIT / JITTER (vertikal) -->
     <LinearLayout
         android:id="@+id/panelkiri"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="180dp"
         android:orientation="vertical"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:padding="14dp"
         android:background="@drawable/bg_dialog_card"
         android:elevation="10dp">
