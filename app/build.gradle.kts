@@ -39,14 +39,6 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
-    // Penamaan APK otomatis: AYA-<versionName>-<versionCode>.apk
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "AYA-${versionName}-${versionCode}.apk"
-        }
-    }
 }
 
 dependencies {
