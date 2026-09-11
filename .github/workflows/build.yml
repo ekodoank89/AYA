@@ -1,4 +1,4 @@
-name: Build AYA Modul
+name: Build AYA
 
 on:
   push:
@@ -60,12 +60,12 @@ jobs:
       - name: Rapikan nama APK (versi + build number)
         run: |
           mkdir -p apk_out
-          cp app/build/outputs/apk/release/*.apk "apk_out/AYA.Modul-v${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/*.apk "apk_out/AYA-${{ github.run_number }}.apk"
           ls -la apk_out/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AYA.Modul-release
+          name: AYA-release
           path: apk_out/*.apk
           if-no-files-found: error
