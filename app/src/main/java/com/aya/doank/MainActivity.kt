@@ -199,7 +199,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
+    /** Play langsung dari favorit — lock di koordinat favorit + fly map + push + buka app target. */
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
         prefs.setSpoofPoint(catId, lat, lng)
@@ -208,11 +208,14 @@ class MainActivity : AppCompatActivity() {
         playPanel.refresh(catId)
         refreshNotif()
 
+        // Map fly ke koordinat favorit (pin center = titik favorit)
+        map.flyTo(LatLng(lat, lng))
+
         val launch = packageManager.getLaunchIntentForPackage(
             target.packageNames.firstOrNull() ?: return
         )
         if (launch != null) {
-            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launch)
         }
 
