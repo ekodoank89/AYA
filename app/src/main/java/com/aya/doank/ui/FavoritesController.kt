@@ -217,7 +217,7 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-
+        lebarkan(d)   // ← TAMBAHKAN INI — dialog edit 92% lebar layar
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
             val name = nameEt.text.toString().trim()
