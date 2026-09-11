@@ -93,7 +93,7 @@ class FavoritesController(
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
-                item.setOnClickListener {
+                                item.setOnClickListener {
                     showPlayConfirm(cat, i, f)
                 }
                 list.addView(item)
