@@ -276,6 +276,21 @@ class FavoritesController(
             .show()
     }
 
+    // ===== KONFIRMASI PLAY dari favorit =====
+    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
+        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                onPick(cat, f.lat, f.lng, f.name)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
+        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
+    }
+    
     private fun refreshDialogIfOpen() {
         if (dialog?.isShowing == true) {
             dialog?.dismiss()
