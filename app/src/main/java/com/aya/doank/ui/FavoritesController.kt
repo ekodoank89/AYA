@@ -16,7 +16,7 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
 
 /**
- * Dialog favorit — v2.9: PER KATEGORI (GRAB | GOJEK).
+ * Dialog favorit — v2.9.2: PER KATEGORI (GRAB | GOJEK).
  * Tap nama favorit → pin menuju koordinat → langsung play sesuai kategori → close menu.
  * Semua dialog dikartukan solid + dilebarkan 92% via helper.
  */
@@ -24,7 +24,7 @@ class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onFavoriteTap: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -59,6 +59,8 @@ class FavoritesController(
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
         val catGojek  = v.findViewById<TextView>(R.id.cat_gojek)
+        val modePin   = v.findViewById<TextView>(R.id.mode_pin)
+        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
         val nameEt    = v.findViewById<EditText>(R.id.fav_name)
         val latlngRow = v.findViewById<View>(R.id.latlng_row)
         val latEt     = v.findViewById<EditText>(R.id.in_lat)
@@ -92,7 +94,7 @@ class FavoritesController(
                 // Tap nama favorit → langsung play sesuai kategori
                 item.setOnClickListener {
                     dialog?.dismiss()
-                    onPlay(cat, f.lat, f.lng, f.name)
+                    onFavoriteTap(cat, f.lat, f.lng, f.name)
                 }
                 list.addView(item)
             }
@@ -113,6 +115,22 @@ class FavoritesController(
         }
         catGrab.setOnClickListener { setCat(Targets.GRAB.id) }
         catGojek.setOnClickListener { setCat(Targets.GOJEK.id) }
+
+        fun setMode(m: String) {
+            mode = m
+            val sel = R.drawable.bg_mode_on
+            val unsel = R.drawable.bg_mode_off
+            val on = 0xFFC8F7D8.toInt()
+            val off = 0x99FFFFFF.toInt()
+            modePin.setBackgroundResource(if (m == "pin") sel else unsel)
+            modePin.setTextColor(if (m == "pin") on else off)
+            modeManual.setBackgroundResource(if (m == "manual") sel else unsel)
+            modeManual.setTextColor(if (m == "manual") on else off)
+            latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
+            clearErr()
+        }
+        modePin.setOnClickListener { setMode("pin") }
+        modeManual.setOnClickListener { setMode("manual") }
 
         fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
             clearErr()
