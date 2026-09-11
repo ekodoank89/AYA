@@ -16,17 +16,15 @@ import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
 
 /**
- * Dialog favorit — v2.8: PER KATEGORI (GRAB | GOJEK).
- * v2.8.2: tap nama favorit → dialog konfirmasi "Mulai Spoofing?" →
- * PLAY = langsung aktif di koordinat favorit sesuai kategorinya.
+ * Dialog favorit — v2.9: PER KATEGORI (GRAB | GOJEK).
+ * Tap nama favorit → pin menuju koordinat → langsung play sesuai kategori → close menu.
  * Semua dialog dikartukan solid + dilebarkan 92% via helper.
  */
 class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit,
-    private val onPick: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -61,8 +59,6 @@ class FavoritesController(
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_favorites, null)
         val catGrab   = v.findViewById<TextView>(R.id.cat_grab)
         val catGojek  = v.findViewById<TextView>(R.id.cat_gojek)
-        val modePin   = v.findViewById<TextView>(R.id.mode_pin)
-        val modeManual = v.findViewById<TextView>(R.id.mode_manual)
         val nameEt    = v.findViewById<EditText>(R.id.fav_name)
         val latlngRow = v.findViewById<View>(R.id.latlng_row)
         val latEt     = v.findViewById<EditText>(R.id.in_lat)
@@ -93,8 +89,10 @@ class FavoritesController(
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
+                // Tap nama favorit → langsung play sesuai kategori
                 item.setOnClickListener {
-                    showPlayConfirm(cat, i, f)
+                    dialog?.dismiss()
+                    onPlay(cat, f.lat, f.lng, f.name)
                 }
                 list.addView(item)
             }
@@ -115,22 +113,6 @@ class FavoritesController(
         }
         catGrab.setOnClickListener { setCat(Targets.GRAB.id) }
         catGojek.setOnClickListener { setCat(Targets.GOJEK.id) }
-
-        fun setMode(m: String) {
-            mode = m
-            val sel = R.drawable.bg_mode_on
-            val unsel = R.drawable.bg_mode_off
-            val on = 0xFFC8F7D8.toInt()
-            val off = 0x99FFFFFF.toInt()
-            modePin.setBackgroundResource(if (m == "pin") sel else unsel)
-            modePin.setTextColor(if (m == "pin") on else off)
-            modeManual.setBackgroundResource(if (m == "manual") sel else unsel)
-            modeManual.setTextColor(if (m == "manual") on else off)
-            latlngRow.visibility = if (m == "manual") View.VISIBLE else View.GONE
-            clearErr()
-        }
-        modePin.setOnClickListener { setMode("pin") }
-        modeManual.setOnClickListener { setMode("manual") }
 
         fun validate(la: EditText, ln: EditText): Pair<Double, Double>? {
             clearErr()
@@ -199,21 +181,6 @@ class FavoritesController(
         lebarkan(dialog!!)
         dialog?.show()
         render()
-    }
-
-    // ===== KONFIRMASI PLAY dari favorit =====
-    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
-        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setTitle("Mulai Spoofing?")
-            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
-            .setPositiveButton("▶ PLAY") { _, _ ->
-                onPlay(cat, f.lat, f.lng, f.name)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
-        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
     }
 
     // ===== EDIT: nama + koordinat =====
