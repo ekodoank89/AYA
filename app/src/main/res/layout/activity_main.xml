@@ -19,14 +19,14 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Kolom kanan: autofocus, tema, zoom in, zoom out -->
+    <!-- Kolom kanan: GPS + tema + zoom -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="28dp"
+        android:layout_marginBottom="180dp"
         android:orientation="vertical">
 
         <ImageButton
@@ -82,24 +82,24 @@
             android:text="−" />
     </LinearLayout>
 
-    <!-- KONTAINER KIRI BAWAH: GRAB / GOJEK / FAVORIT / JITTER (vertikal) -->
+    <!-- ===== KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER ===== -->
     <LinearLayout
-        android:id="@+id/panelkiri"
-        android:layout_width="wrap_content"
+        android:id="@+id/bottom_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="28dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:padding="14dp"
+        android:layout_gravity="bottom"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp"
         android:background="@drawable/bg_dialog_card"
         android:elevation="10dp">
 
         <!-- GRAB -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -139,8 +139,9 @@
 
         <!-- GOJEK -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -180,8 +181,9 @@
 
         <!-- FAVORIT -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -207,8 +209,9 @@
 
         <!-- JITTER -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
