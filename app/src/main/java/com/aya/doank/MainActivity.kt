@@ -26,7 +26,6 @@ import com.aya.doank.ui.NotifPermissionFlow
 import com.aya.doank.ui.PermissionFlow
 import com.aya.doank.ui.PlayPanelController
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
 
 class MainActivity : AppCompatActivity() {
 
@@ -64,7 +63,10 @@ class MainActivity : AppCompatActivity() {
             this,
             FavoritesStore(this),
             centerProvider = { map.currentCenter() },
-            onFavoritePlay = { catId, lat, lng, name ->
+            onPlay = { catId, lat, lng, name ->
+                playFromFavorite(catId, lat, lng, name)
+            },
+            onPick = { catId, lat, lng, name ->
                 playFromFavorite(catId, lat, lng, name)
             }
         )
@@ -76,7 +78,7 @@ class MainActivity : AppCompatActivity() {
 
         permissionFlow.onSettled = { nextChainStep() }
 
-        // PlayPanel mem-push sendiri saat toggle
+        // v2.6.4: PlayPanel mem-push sendiri saat toggle
         // (lock → push → buka app target + push ulang terjadwal)
         playPanel = PlayPanelController(
             this, prefs,
@@ -94,6 +96,7 @@ class MainActivity : AppCompatActivity() {
 
         favorites.bind(R.id.btn_fav)
 
+        // ==== JITTER ====
         jitter = JitterController(this, prefs, pusher)
         jitter.bind(R.id.btn_jitter)
 
@@ -119,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Satu pintu update notifikasi indikator (kumpulkan target aktif → update). */
     private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
             if (prefs.isSpoofActive(t.id)) {
@@ -131,7 +135,11 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (permissionFlow.hasPermission()) map.ensureBlueDot()
+
+        // Kembali dari Settings → selesaikan tahap tertunda → rantai evaluasi ulang
         permissionFlow.resumePendingBackground { nextChainStep() }
+
+        // Notifikasi indikator sinkron dengan state tersimpan
         refreshNotif()
     }
 
@@ -140,18 +148,28 @@ class MainActivity : AppCompatActivity() {
         if (::map.isInitialized) map.stop()
     }
 
+    /**
+     * Mesin status rantai v2.4.2 + DOUBLE CROSS-CHECK:
+     * 1) Lokasi dasar   — ulang hingga granted
+     * 2) Selalu izinkan — ulang hingga granted (dicek ulang dari onResume)
+     * 3) Notifikasi     — ulang hingga granted
+     * 4) Baterai        — dialog sistem SEKALI per sesi (tidak ditagih ulang)
+     */
     private fun nextChainStep() {
         when {
             !permissionFlow.hasPermission() ->
                 beginStage("Lokasi") { permissionFlow.requestOrGuide() }
+
             !permissionFlow.hasBackgroundLocation() ->
                 beginStage("Selalu izinkan") {
                     permissionFlow.requestBackgroundLocation { nextChainStep() }
                 }
+
             !notifPerm.isGranted() ->
                 beginStage("Notifikasi") {
                     notifPerm.requestInChain { nextChainStep() }
                 }
+
             !permissionFlow.isBatteryUnrestricted() -> {
                 if (!batteryOnceThisSession) {
                     batteryOnceThisSession = true
@@ -161,9 +179,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Double cross-check: tahap yang SAMA diminta ulang = belum granted
+     * → toast penjelasan + jeda 0,7 dtk sebelum dialog muncul lagi.
+     */
     private fun beginStage(name: String, request: () -> Unit) {
         if (name == lastStage) {
-            Toast.makeText(this, "Izin \"$name\" belum aktif — mengulangi permintaan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Izin \"$name\" belum aktif — mengulangi permintaan",
+                Toast.LENGTH_SHORT
+            ).show()
             chainHandler.postDelayed({ request() }, 700)
         } else {
             lastStage = name
@@ -171,6 +197,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
         prefs.setSpoofPoint(catId, lat, lng)
@@ -178,8 +205,6 @@ class MainActivity : AppCompatActivity() {
         pusher.push(target)
         playPanel.refresh(catId)
         refreshNotif()
-
-        map.flyTo(LatLng(lat, lng))
 
         val launch = packageManager.getLaunchIntentForPackage(
             target.packageNames.firstOrNull() ?: return
