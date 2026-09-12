@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifPerm: NotifPermissionFlow
     private lateinit var jitter: JitterController
 
+    // Launcher izin notifikasi — WAJIB field (terdaftar sebelum onStart).
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -46,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         notifPerm.notifDone?.let { it(); notifPerm.notifDone = null }
     }
 
+    // ===== RANTAI IZIN + DOUBLE CROSS-CHECK (v2.4.2) =====
     private var lastStage = ""
     private val chainHandler = Handler(Looper.getMainLooper())
     private var batteryOnceThisSession = false
@@ -63,10 +65,7 @@ class MainActivity : AppCompatActivity() {
             this,
             FavoritesStore(this),
             centerProvider = { map.currentCenter() },
-            onPlay = { catId, lat, lng, name ->
-                playFromFavorite(catId, lat, lng, name)
-            },
-            onPick = { catId, lat, lng, name ->
+            onFavoritePlay = { catId, lat, lng, name ->
                 playFromFavorite(catId, lat, lng, name)
             }
         )
