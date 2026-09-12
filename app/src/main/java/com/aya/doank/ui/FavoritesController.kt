@@ -24,8 +24,7 @@ class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit,
-    private val onPick: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -200,21 +199,6 @@ class FavoritesController(
         lebarkan(dialog!!)
         dialog?.show()
         render()
-    }
-
-    // ===== KONFIRMASI PLAY dari favorit (dipanggil dari pemanggil luar bila dibutuhkan) =====
-    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
-        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
-        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
-            .setTitle("Mulai Spoofing?")
-            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
-            .setPositiveButton("▶ PLAY") { _, _ ->
-                onPlay(cat, f.lat, f.lng, f.name)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
-        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
     }
 
     // ===== EDIT: nama + koordinat =====
