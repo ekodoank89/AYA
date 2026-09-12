@@ -17,14 +17,15 @@ import java.util.Locale
 
 /**
  * Dialog favorit — v2.9: PER KATEGORI (GRAB | GOJEK).
- * Tap nama favorit → onFavoritePlay(cat, lat, lng, name) → MainActivity memicu play.
- * Semua dialog dikartukan solid + dilebarkan 92% via helper.
+ * v2.9.6: tap nama favorit → pin menuju koordinat favorit → langsung play
+ * sesuai kategori favorit → tutup menu favorite.
  */
 class FavoritesController(
     private val activity: Activity,
     private val store: FavoritesStore,
     private val centerProvider: () -> LatLng?,
-    private val onFavoritePlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
+    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit,
+    private val onPick: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
     private var dialog: AlertDialog? = null
 
@@ -91,10 +92,10 @@ class FavoritesController(
                     String.format(Locale.US, "%.6f, %.6f", f.lat, f.lng)
                 item.findViewById<View>(R.id.if_edit).setOnClickListener { showEdit(cat, i) }
                 item.findViewById<View>(R.id.if_del).setOnClickListener { askDelete(cat, i) }
-                // Tap nama favorit → langsung play sesuai kategori
+                // Tap nama favorit → pindah pin + langsung play sesuai kategori + tutup menu
                 item.setOnClickListener {
                     dialog?.dismiss()
-                    onFavoritePlay(cat, f.lat, f.lng, f.name)
+                    onPlay(cat, f.lat, f.lng, f.name)
                 }
                 list.addView(item)
             }
@@ -201,7 +202,22 @@ class FavoritesController(
         render()
     }
 
-    // ===== EDIT: nama + koordinat (kartu solid + 92% lebar) =====
+    // ===== KONFIRMASI PLAY dari favorit (dipanggil dari pemanggil luar bila dibutuhkan) =====
+    private fun showPlayConfirm(cat: String, i: Int, f: FavoritesStore.Fav) {
+        val label = if (cat == Targets.GRAB.id) "GRAB" else "GOJEK"
+        val d = AlertDialog.Builder(activity, R.style.Theme_AYA_Dialog)
+            .setTitle("Mulai Spoofing?")
+            .setMessage("Mulai $label di lokasi \"${f.name}\"?")
+            .setPositiveButton("▶ PLAY") { _, _ ->
+                onPlay(cat, f.lat, f.lng, f.name)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFF43A047.toInt())
+        d.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(0xFF757575.toInt())
+    }
+
+    // ===== EDIT: nama + koordinat =====
     private fun showEdit(cat: String, i: Int) {
         val f = store.all(cat).getOrNull(i) ?: return
         val v = LayoutInflater.from(activity).inflate(R.layout.dialog_edit_fav, null)
@@ -217,7 +233,6 @@ class FavoritesController(
             .setView(v)
             .create()
         d.window?.setBackgroundDrawableResource(R.drawable.bg_dialog_card)
-        lebarkan(d)   // ← dialog edit 92% lebar layar — sama dengan dialog utama
 
         v.findViewById<View>(R.id.e_cancel).setOnClickListener { d.dismiss() }
         v.findViewById<View>(R.id.e_save).setOnClickListener {
@@ -239,7 +254,7 @@ class FavoritesController(
                 refreshDialogIfOpen()
                 Toast.makeText(activity, "\"$name\" diperbarui", Toast.LENGTH_SHORT).show()
             } else {
-                errTv.text = "Nama sudah dipakai lokasi lain di kategori ini."
+                errTv.text = "Nama sudah dipakai lokasi lain."
                 errTv.visibility = View.VISIBLE
             }
         }
