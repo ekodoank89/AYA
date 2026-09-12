@@ -19,14 +19,14 @@
         android:elevation="6dp"
         android:src="@drawable/ic_pin" />
 
-    <!-- Kolom kanan: GPS + tema + zoom -->
+    <!-- Kolom kanan: GPS + tema -->
     <LinearLayout
         android:id="@+id/sidecol"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="180dp"
+        android:layout_marginBottom="28dp"
         android:orientation="vertical">
 
         <ImageButton
@@ -50,56 +50,26 @@
             android:padding="11dp"
             android:contentDescription="Ganti tema peta"
             android:src="@drawable/ic_moon" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <Button
-            android:id="@+id/btn_zoom_in"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:elevation="6dp"
-            android:textSize="22sp"
-            android:textColor="#212121"
-            android:fontFamily="monospace"
-            android:text="+" />
-
-        <Space android:layout_width="1dp" android:layout_height="10dp" />
-
-        <Button
-            android:id="@+id/btn_zoom_out"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_button"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:elevation="6dp"
-            android:textSize="22sp"
-            android:textColor="#212121"
-            android:fontFamily="monospace"
-            android:text="−" />
     </LinearLayout>
 
-    <!-- ===== KONTAINER BAWAH: GRAB | GOJEK | FAVORIT | JITTER ===== -->
+    <!-- ===== KONTAINER VERTIKAL KIRI BAWAH: GRAB | GOJEK | FAVORIT | JITTER ===== -->
     <LinearLayout
-        android:id="@+id/bottom_container"
-        android:layout_width="match_parent"
+        android:id="@+id/panelkiri"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingTop="10dp"
-        android:paddingBottom="12dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-10dp"
+        android:layout_marginBottom="0dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="14dp"
         android:background="@drawable/bg_dialog_card"
         android:elevation="10dp">
 
         <!-- GRAB -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -139,9 +109,8 @@
 
         <!-- GOJEK -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -181,9 +150,8 @@
 
         <!-- FAVORIT -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
@@ -209,9 +177,8 @@
 
         <!-- JITTER -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
