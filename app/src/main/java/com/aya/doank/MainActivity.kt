@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Satu pintu update notifikasi indikator (kumpulkan target aktif → update). */
-    private fun refreshNotif() {
+        private fun refreshNotif() {
         val activeList = Targets.all.mapNotNull { t ->
             if (prefs.isSpoofActive(t.id)) {
                 prefs.spoofPoint(t.id)?.let { t to it }
@@ -196,7 +196,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Play langsung dari favorit — lock di koordinat favorit + push + buka app target. */
+        /** Play langsung dari favorit — pin menuju koordinat + lock + push + buka app target. */
     private fun playFromFavorite(catId: String, lat: Double, lng: Double, name: String) {
         val target = Targets.byId(catId)
         prefs.setSpoofPoint(catId, lat, lng)
@@ -205,11 +205,15 @@ class MainActivity : AppCompatActivity() {
         playPanel.refresh(catId)
         refreshNotif()
 
+        // Pin menuju koordinat favorit
+        map.flyTo(LatLng(lat, lng))
+
+        // Buka app target
         val launch = packageManager.getLaunchIntentForPackage(
             target.packageNames.firstOrNull() ?: return
         )
         if (launch != null) {
-            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launch)
         }
 
