@@ -3,8 +3,12 @@ package com.aya.doank.ui
 import android.content.Context
 import android.widget.EditText
 import android.widget.Toast
+import androidx.annotation.IdRes
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import com.aya.doank.core.FavoritesStore
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -22,8 +26,10 @@ data class FavCategory(
 )
 
 class FavoritesController(
-    private val context: Context,
-    private val onSelectLocation: (lat: Double, lng: Double, name: String) -> Unit
+    private val activity: AppCompatActivity,
+    private val store: FavoritesStore,
+    private val centerProvider: () -> Pair<Double, Double>?,
+    private val onPlay: (catId: String, lat: Double, lng: Double, name: String) -> Unit
 ) {
 
     private val categories = mutableListOf<FavCategory>()
@@ -33,8 +39,14 @@ class FavoritesController(
         loadFavorites()
     }
 
+    fun bind(@IdRes buttonId: Int) {
+        activity.findViewById<FloatingActionButton>(buttonId)?.setOnClickListener {
+            showFavoritesDialog()
+        }
+    }
+
     fun showFavoritesDialog() {
-        val builder = MaterialAlertDialogBuilder(context)
+        val builder = MaterialAlertDialogBuilder(activity)
         builder.setTitle("Lokasi Favorit")
 
         val catNames = categories.map { it.name }.toTypedArray()
@@ -56,7 +68,7 @@ class FavoritesController(
     fun showCategoryItemsDialog(cat: FavCategory) {
         val itemLabels = cat.items.map { "${it.name}\n(${it.lat}, ${it.lng})" }.toTypedArray()
 
-        val builder = MaterialAlertDialogBuilder(context)
+        val builder = MaterialAlertDialogBuilder(activity)
         builder.setTitle("Kategori: ${cat.name}")
 
         if (cat.items.isEmpty()) {
@@ -80,11 +92,11 @@ class FavoritesController(
 
     private fun showItemOptionsDialog(cat: FavCategory, item: FavItem) {
         val options = arrayOf("Gunakan Lokasi Ini", "Hapus Lokasi")
-        MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(activity)
             .setTitle(item.name)
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> onSelectLocation(item.lat, item.lng, item.name)
+                    0 -> onPlay(cat.id, item.lat, item.lng, item.name)
                     1 -> askDelete(cat, item)
                 }
             }
@@ -105,10 +117,10 @@ class FavoritesController(
     }
 
     private fun showAddCategoryDialog() {
-        val input = EditText(context)
+        val input = EditText(activity)
         input.hint = "Masukkan nama kategori"
 
-        MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(activity)
             .setTitle("Tambah Kategori Baru")
             .setView(input)
             .setPositiveButton("Simpan") { _, _ ->
@@ -119,7 +131,7 @@ class FavoritesController(
                         saveFavorites()
                         refreshDialogIfOpen()
                     } else {
-                        Toast.makeText(context, "Kategori '$name' sudah ada.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, "Kategori '$name' sudah ada.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -127,11 +139,8 @@ class FavoritesController(
             .show()
     }
 
-    /**
-     * Konfirmasi hapus item favorit tertentu
-     */
     private fun askDelete(cat: FavCategory, item: FavItem) {
-        MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(activity)
             .setTitle("Hapus Favorit")
             .setMessage("Apakah Anda yakin ingin menghapus '${item.name}' dari kategori '${cat.name}'?")
             .setPositiveButton("Hapus") { _, _ ->
@@ -143,13 +152,10 @@ class FavoritesController(
             .show()
     }
 
-    /**
-     * Konfirmasi hapus seluruh kategori
-     */
     private fun askDeleteCategory(cat: FavCategory) {
-        MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(activity)
             .setTitle("Hapus Kategori")
-            .setMessage("Apakah Anda yakin ingin menghapus kategori '${cat.name}' beserta seluruh falls lokasi di dalamnya?")
+            .setMessage("Apakah Anda yakin ingin menghapus kategori '${cat.name}' beserta seluruh lokasi di dalamnya?")
             .setPositiveButton("Hapus") { _, _ ->
                 categories.remove(cat)
                 saveFavorites()
@@ -159,9 +165,6 @@ class FavoritesController(
             .show()
     }
 
-    /**
-     * Memperbarui/merefresh tampilan dialog jika dialog favorit sedang dalam keadaan terbuka
-     */
     private fun refreshDialogIfOpen() {
         if (activeDialog?.isShowing == true) {
             activeDialog?.dismiss()
@@ -171,7 +174,7 @@ class FavoritesController(
 
     private fun loadFavorites() {
         try {
-            val prefs = context.getSharedPreferences("aya_fav_prefs", Context.MODE_PRIVATE)
+            val prefs = activity.getSharedPreferences("aya_fav_prefs", Context.MODE_PRIVATE)
             val jsonStr = prefs.getString("favorites_json", null) ?: return
             
             categories.clear()
@@ -220,7 +223,7 @@ class FavoritesController(
                 array.put(catObj)
             }
             
-            val prefs = context.getSharedPreferences("aya_fav_prefs", Context.MODE_PRIVATE)
+            val prefs = activity.getSharedPreferences("aya_fav_prefs", Context.MODE_PRIVATE)
             prefs.edit().putString("favorites_json", array.toString()).apply()
         } catch (e: Exception) {
             e.printStackTrace()
