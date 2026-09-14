@@ -56,14 +56,17 @@ class MainActivity : AppCompatActivity() {
         pusher = ConfigPusher(this)
         notifs = NotifController(this)
         notifPerm = NotifPermissionFlow(this, notifPermLauncher)
-        favorites = FavoritesController(
-            this,
-            FavoritesStore(this),
-            centerProvider = { map.currentCenter() },
-            onPlay = { catId, lat, lng, name ->
-                playFromFavorite(catId, lat, lng, name)
-            }
-        )
+        // ✅ Sesudah (Diperbaiki)
+favorites = FavoritesController(
+    this,
+    FavoritesStore(this),
+    centerProvider = { 
+        map.currentCenter()?.let { Pair(it.latitude, it.longitude) } 
+    },
+    onPlay = { catId, lat, lng, name ->
+        playFromFavorite(catId, lat, lng, name)
+    }
+)
 
         permissionFlow = PermissionFlow(this, prefs) {
             map.ensureBlueDot()
